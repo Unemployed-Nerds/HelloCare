@@ -269,6 +269,11 @@ class ApiService {
     return response.data;
   }
 
+  Future<Map<String, dynamic>> deleteReport(String reportId) async {
+    final response = await _dio.delete('/reports/$reportId');
+    return response.data;
+  }
+
   Future<Map<String, dynamic>> exportReports({
     required List<String> reportIds,
     String format = 'zip',
@@ -283,6 +288,13 @@ class ApiService {
   // AI Features
   Future<Map<String, dynamic>> getAISummary() async {
     final response = await _dio.get('/ai/summary');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getAISummaryForReports(List<String> reportIds) async {
+    final response = await _dio.post('/ai/summary', data: {
+      'reportIds': reportIds,
+    });
     return response.data;
   }
 

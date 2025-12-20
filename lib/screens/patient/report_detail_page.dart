@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import '../../utils/theme.dart';
 import '../../utils/glass_effects.dart';
 import '../../providers/report_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/pdf_viewer.dart';
 import '../../models/report.dart';
 
@@ -28,6 +30,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   String? _downloadUrl;
   bool _isLoadingUrl = false;
   String? _urlError;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -112,6 +115,84 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     );
   }
 
+  Future<void> _handleDelete() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceVariant,
+        title: const Text(
+          'Delete Report',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this report? This action cannot be undone.',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+              foregroundColor: AppTheme.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    final reportProvider = Provider.of<ReportProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    if (userProvider.currentUser != null) {
+      final success = await reportProvider.deleteReport(
+        widget.reportId,
+        userProvider.currentUser!.userId,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Report deleted successfully'),
+              backgroundColor: AppTheme.primaryGreen,
+            ),
+          );
+          // Navigate back
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/patient/reports');
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(reportProvider.error ?? 'Failed to delete report'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+          setState(() {
+            _isDeleting = false;
+          });
+        }
+      }
+    }
+  }
+
   Widget _buildReportView(Map<String, dynamic> reportData) {
     final title = reportData['title']?.toString() ?? 'Report';
     final fileType = reportData['fileType']?.toString() ?? 'pdf';
@@ -137,6 +218,23 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       backgroundColor: AppTheme.backgroundGreen,
       appBar: AppBar(
         title: Text(title),
+        actions: [
+          if (_isDeleting)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _handleDelete,
+              tooltip: 'Delete Report',
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -277,6 +375,23 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           backgroundColor: AppTheme.backgroundGreen,
           appBar: AppBar(
             title: Text(report.title),
+            actions: [
+              if (_isDeleting)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _handleDelete,
+                  tooltip: 'Delete Report',
+                ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),

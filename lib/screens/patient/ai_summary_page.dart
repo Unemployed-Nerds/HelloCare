@@ -1,8 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../utils/theme.dart';
 import '../../services/api_service.dart';
 import '../../widgets/ai_summary_display.dart';
+import '../../widgets/report_selection_widget.dart';
+import '../../providers/report_provider.dart';
+import '../../providers/user_provider.dart';
+
+enum AISummaryViewState {
+  selection,
+  loading,
+  summary,
+  error,
+}
 
 class AISummaryPage extends StatefulWidget {
   const AISummaryPage({super.key});
@@ -13,24 +24,40 @@ class AISummaryPage extends StatefulWidget {
 
 class _AISummaryPageState extends State<AISummaryPage> {
   final ApiService _apiService = ApiService();
-  bool _isLoading = true;
+  AISummaryViewState _viewState = AISummaryViewState.selection;
   Map<String, dynamic>? _summaryData;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadSummary();
+    // Defer loading reports until after the build phase completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadReports();
+      }
+    });
   }
 
-  Future<void> _loadSummary() async {
+  Future<void> _loadReports() async {
+    if (!mounted) return;
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final reportProvider = Provider.of<ReportProvider>(context, listen: false);
+    
+    if (userProvider.currentUser != null) {
+      await reportProvider.loadReports(userProvider.currentUser!.userId);
+    }
+  }
+
+  Future<void> _generateSummary(List<String> reportIds) async {
     setState(() {
-      _isLoading = true;
+      _viewState = AISummaryViewState.loading;
       _error = null;
     });
 
     try {
-      final response = await _apiService.getAISummary();
+      final response = await _apiService.getAISummaryForReports(reportIds);
       print('AI Summary Response: $response');
       
       if (response['success']) {
@@ -171,9 +198,9 @@ class _AISummaryPageState extends State<AISummaryPage> {
               'parsingNotes': processedData['parsingNotes']?.toString() ?? '',
               'phiRedacted': processedData['phiRedacted'] == true,
               'generatedAt': processedData['generatedAt']?.toString(),
-              'reportCount': processedData['reportCount'] is num ? processedData['reportCount'] : null,
+              'reportCount': processedData['reportCount'] is num ? processedData['reportCount'] : reportIds.length,
             };
-            _isLoading = false;
+            _viewState = AISummaryViewState.summary;
           });
           print('Summary data set successfully');
         } else if (processedData.containsKey('summary')) {
@@ -184,9 +211,9 @@ class _AISummaryPageState extends State<AISummaryPage> {
               'findings': [],
               'priorityEmoji': '✅',
               'generatedAt': processedData['generatedAt']?.toString(),
-              'reportCount': processedData['reportCount'] is num ? processedData['reportCount'] : null,
+              'reportCount': processedData['reportCount'] is num ? processedData['reportCount'] : reportIds.length,
             };
-            _isLoading = false;
+            _viewState = AISummaryViewState.summary;
           });
         } else {
           // Fallback: try to extract any meaningful data from the response
@@ -208,14 +235,15 @@ class _AISummaryPageState extends State<AISummaryPage> {
               'overallSummary': fallbackSummary ?? 'No summary data available. Please try refreshing.',
               'findings': [],
               'priorityEmoji': '✅',
+              'reportCount': reportIds.length,
             };
-            _isLoading = false;
+            _viewState = AISummaryViewState.summary;
           });
         }
       } else {
         setState(() {
           _error = response['error']?['message']?.toString() ?? 'Failed to load summary';
-          _isLoading = false;
+          _viewState = AISummaryViewState.error;
         });
       }
     } catch (e, stackTrace) {
@@ -223,39 +251,67 @@ class _AISummaryPageState extends State<AISummaryPage> {
       print('Stack trace: $stackTrace');
       setState(() {
         _error = e.toString();
-        _isLoading = false;
+        _viewState = AISummaryViewState.error;
       });
     }
   }
 
+  void _goBackToSelection() {
+    setState(() {
+      _viewState = AISummaryViewState.selection;
+      _summaryData = null;
+      _error = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_viewState == AISummaryViewState.selection) {
+      return Consumer<ReportProvider>(
+        builder: (context, reportProvider, child) {
+          return ReportSelectionWidget(
+            reports: reportProvider.reports,
+            onGenerateSummary: _generateSummary,
+          );
+        },
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundGreen,
       appBar: AppBar(
         title: const Text('AI Summary'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _goBackToSelection,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadSummary,
-          ),
+          if (_viewState == AISummaryViewState.summary)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => _goBackToSelection(),
+              tooltip: 'Select Different Reports',
+            ),
         ],
       ),
-      body: _isLoading
+      body: _viewState == AISummaryViewState.loading
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
+          : _viewState == AISummaryViewState.error
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
                       const SizedBox(height: 16),
-                      Text(_error!),
+                      Text(
+                        _error ?? 'An error occurred',
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _loadSummary,
-                        child: const Text('Retry'),
+                        onPressed: _goBackToSelection,
+                        child: const Text('Select Reports Again'),
                       ),
                     ],
                   ),
@@ -266,4 +322,3 @@ class _AISummaryPageState extends State<AISummaryPage> {
     );
   }
 }
-

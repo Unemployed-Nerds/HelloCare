@@ -166,6 +166,34 @@ class ReportProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> deleteReport(String reportId, String userId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.deleteReport(reportId);
+      
+      if (response['success'] == true) {
+        // Remove from local list
+        _reports.removeWhere((report) => report.reportId == reportId);
+        // Update cache
+        await _cacheService.cacheReports(_reports);
+        _error = null;
+        return true;
+      } else {
+        _error = response['error']?['message'] ?? 'Failed to delete report';
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
