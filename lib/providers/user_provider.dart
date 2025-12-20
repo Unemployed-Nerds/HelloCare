@@ -14,7 +14,7 @@ class UserProvider with ChangeNotifier {
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isAuthenticated => _currentUser != null;
+  bool get isAuthenticated => _currentUser != null || _authService.currentUser != null;
 
   UserProvider() {
     _init();

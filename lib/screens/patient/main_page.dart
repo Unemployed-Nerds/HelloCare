@@ -21,7 +21,6 @@ class _PatientMainPageState extends State<PatientMainPage> {
     final userProvider = Provider.of<UserProvider>(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGreen,
       appBar: AppBar(
         title: const Text('HelloCare'),
         actions: [
@@ -103,10 +102,10 @@ class _PatientMainPageState extends State<PatientMainPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.medical_services,
-                  size: 48,
-                  color: AppTheme.white,
+                Image.asset(
+                  'assets/logo.webp',
+                  height: 48,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -131,7 +130,14 @@ class _PatientMainPageState extends State<PatientMainPage> {
             final isPinned = moduleProvider.pinnedModules
                 .any((pinned) => pinned.id == module.id);
             return ListTile(
-              leading: Text(module.icon, style: const TextStyle(fontSize: 24)),
+              leading: module.icon.startsWith('assets/')
+                  ? Image.asset(
+                      module.icon,
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.contain,
+                    )
+                  : Text(module.icon, style: const TextStyle(fontSize: 24)),
               title: Text(module.title),
               trailing: IconButton(
                 icon: Icon(
@@ -215,16 +221,21 @@ class _PatientMainPageState extends State<PatientMainPage> {
               final isPinned = moduleProvider.pinnedModules
                   .any((pinned) => pinned.id == module.id);
               return ListTile(
-                leading: Text(module.icon, style: const TextStyle(fontSize: 24)),
+                leading: module.icon.startsWith('assets/')
+                    ? Image.asset(
+                        module.icon,
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.contain,
+                      )
+                    : Text(module.icon, style: const TextStyle(fontSize: 24)),
                 title: Text(module.title),
                 trailing: Icon(
                   isPinned ? Icons.check : Icons.add,
                   color: isPinned ? AppTheme.primaryGreen : AppTheme.grey,
                 ),
                 onTap: () {
-                  if (!isPinned) {
-                    moduleProvider.togglePin(module.id);
-                  }
+                  moduleProvider.togglePin(module.id);
                   Navigator.pop(context);
                 },
               );

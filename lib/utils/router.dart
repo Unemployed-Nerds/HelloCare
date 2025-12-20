@@ -1,5 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../screens/auth/role_selection_page.dart';
 import '../screens/auth/patient_login_page.dart';
@@ -24,149 +24,273 @@ import '../screens/doctor/doctor_profile_page.dart';
 import '../screens/doctor/scan_qr_page.dart';
 import '../screens/doctor/view_patient_reports_page.dart';
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/role-selection',
-  redirect: (context, state) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final isAuthenticated = userProvider.isAuthenticated;
-    final currentUser = userProvider.currentUser;
-    
-    final isAuthRoute = state.matchedLocation.startsWith('/role-selection') ||
-        state.matchedLocation.startsWith('/patient-login') ||
-        state.matchedLocation.startsWith('/patient-signup') ||
-        state.matchedLocation.startsWith('/doctor-login') ||
-        state.matchedLocation.startsWith('/doctor-signup');
+/// Wrapper widget that handles Android back gesture navigation
+/// Intercepts back button presses and edge swipe gestures
+class BackGestureWrapper extends StatelessWidget {
+  final Widget child;
+  final String currentLocation;
 
-    // If not authenticated and trying to access protected route
-    if (!isAuthenticated && !isAuthRoute) {
-      return '/role-selection';
-    }
+  const BackGestureWrapper({
+    super.key,
+    required this.child,
+    required this.currentLocation,
+  });
 
-    // If authenticated and on auth route, redirect based on role
-    if (isAuthenticated && isAuthRoute) {
-      if (currentUser?.role == 'patient') {
-        return '/patient/main';
-      } else if (currentUser?.role == 'doctor') {
-        return '/doctor/portal';
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        // Always intercept back gesture and handle through GoRouter
+        if (!didPop) {
+          final router = GoRouter.of(context);
+          
+          // Check if we can pop in the router
+          if (context.canPop()) {
+            // Navigate back through the router if there's history
+            context.pop();
+          } else {
+            // Since we're using context.go() which doesn't maintain history,
+            // we need to manually navigate back based on the route hierarchy
+            if (currentLocation.startsWith('/patient/') && 
+                currentLocation != '/patient/main') {
+              // Child routes of patient -> go to patient main
+              router.go('/patient/main');
+            } else if (currentLocation.startsWith('/doctor/') && 
+                       currentLocation != '/doctor/portal') {
+              // Child routes of doctor -> go to doctor portal
+              router.go('/doctor/portal');
+            } else if (currentLocation != '/role-selection' &&
+                       (currentLocation.startsWith('/patient-') || 
+                        currentLocation.startsWith('/doctor-'))) {
+              // Auth pages -> go to role selection
+              router.go('/role-selection');
+            }
+            // For root routes (/role-selection, /patient/main, /doctor/portal),
+            // allow the system to handle (which may close the app)
+          }
+        }
+      },
+      child: child,
+    );
+  }
+}
+
+GoRouter createAppRouter(UserProvider userProvider) {
+  return GoRouter(
+    initialLocation: '/role-selection',
+    redirect: (context, state) {
+      final isAuthenticated = userProvider.isAuthenticated;
+      final currentUser = userProvider.currentUser;
+      
+      final isAuthRoute = state.matchedLocation.startsWith('/role-selection') ||
+          state.matchedLocation.startsWith('/patient-login') ||
+          state.matchedLocation.startsWith('/patient-signup') ||
+          state.matchedLocation.startsWith('/doctor-login') ||
+          state.matchedLocation.startsWith('/doctor-signup');
+
+      // If authenticated and on auth route, redirect to appropriate main page
+      // (but only if user data is loaded, otherwise wait for it)
+      if (isAuthenticated && isAuthRoute) {
+        if (currentUser != null) {
+          if (currentUser.role == 'patient') {
+            return '/patient/main';
+          } else if (currentUser.role == 'doctor') {
+            return '/doctor/portal';
+          }
+        }
+        // If authenticated but user data not loaded yet, stay on auth route
+        // The redirect will be re-evaluated once user data loads
+        return null;
       }
-    }
 
-    // Role-based route protection
-    if (isAuthenticated && currentUser != null) {
-      final isPatientRoute = state.matchedLocation.startsWith('/patient');
-      final isDoctorRoute = state.matchedLocation.startsWith('/doctor');
-
-      if (currentUser.role == 'patient' && isDoctorRoute) {
-        return '/patient/main';
+      // If not authenticated and trying to access protected route
+      if (!isAuthenticated && !isAuthRoute) {
+        return '/role-selection';
       }
-      if (currentUser.role == 'doctor' && isPatientRoute) {
-        return '/doctor/portal';
-      }
-    }
 
-    return null;
-  },
-  routes: [
+      // Role-based route protection
+      if (isAuthenticated && currentUser != null) {
+        final isPatientRoute = state.matchedLocation.startsWith('/patient');
+        final isDoctorRoute = state.matchedLocation.startsWith('/doctor');
+
+        if (currentUser.role == 'patient' && isDoctorRoute) {
+          return '/patient/main';
+        }
+        if (currentUser.role == 'doctor' && isPatientRoute) {
+          return '/doctor/portal';
+        }
+      }
+
+      return null;
+    },
+    routes: [
     // Auth Routes
     GoRoute(
       path: '/role-selection',
-      builder: (context, state) => const RoleSelectionPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const RoleSelectionPage(),
+      ),
     ),
     GoRoute(
       path: '/patient-login',
-      builder: (context, state) => const PatientLoginPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const PatientLoginPage(),
+      ),
     ),
     GoRoute(
       path: '/patient-signup',
-      builder: (context, state) => const PatientSignupPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const PatientSignupPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor-login',
-      builder: (context, state) => const DoctorLoginPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorLoginPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor-signup',
-      builder: (context, state) => const DoctorSignupPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorSignupPage(),
+      ),
     ),
 
     // Patient Routes
     GoRoute(
       path: '/patient/main',
-      builder: (context, state) => const PatientMainPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const PatientMainPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/submit-report',
-      builder: (context, state) => const SubmitReportPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const SubmitReportPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/reports',
-      builder: (context, state) => const ReportsListPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const ReportsListPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/report/:reportId',
       builder: (context, state) {
         final reportId = state.pathParameters['reportId']!;
-        return ReportDetailPage(reportId: reportId);
+        return BackGestureWrapper(
+          currentLocation: state.matchedLocation,
+          child: ReportDetailPage(reportId: reportId),
+        );
       },
     ),
     GoRoute(
       path: '/patient/ai-summary',
-      builder: (context, state) => const AISummaryPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const AISummaryPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/suggestions',
-      builder: (context, state) => const SuggestionsPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const SuggestionsPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/book-appointment',
-      builder: (context, state) => const BookAppointmentPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const BookAppointmentPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/appointments',
-      builder: (context, state) => const AppointmentsPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const AppointmentsPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/share-reports',
-      builder: (context, state) => const ShareReportsPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const ShareReportsPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/export-reports',
-      builder: (context, state) => const ExportReportsPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const ExportReportsPage(),
+      ),
     ),
     GoRoute(
       path: '/patient/profile',
-      builder: (context, state) => const ProfilePage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const ProfilePage(),
+      ),
     ),
 
     // Doctor Routes
     GoRoute(
       path: '/doctor/portal',
-      builder: (context, state) => const DoctorPortalPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorPortalPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor/appointments',
-      builder: (context, state) => const DoctorAppointmentsPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorAppointmentsPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor/availability',
-      builder: (context, state) => const DoctorAvailabilityPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorAvailabilityPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor/profile',
-      builder: (context, state) => const DoctorProfilePage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const DoctorProfilePage(),
+      ),
     ),
     GoRoute(
       path: '/doctor/scan-qr',
-      builder: (context, state) => const ScanQRPage(),
+      builder: (context, state) => BackGestureWrapper(
+        currentLocation: state.matchedLocation,
+        child: const ScanQRPage(),
+      ),
     ),
     GoRoute(
       path: '/doctor/patient-reports',
       builder: (context, state) {
         final qrToken = state.uri.queryParameters['token'];
-        return ViewPatientReportsPage(qrToken: qrToken);
+        return BackGestureWrapper(
+          currentLocation: state.matchedLocation,
+          child: ViewPatientReportsPage(qrToken: qrToken),
+        );
       },
     ),
   ],
-);
-
+  );
+}
 
