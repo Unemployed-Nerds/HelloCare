@@ -194,6 +194,103 @@ class ReportProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> submitMultipleImages({
+    required String userId,
+    required List<File> files,
+    required String title,
+    required DateTime reportDate,
+    String? category,
+    String? doctorName,
+    String? clinicName,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // Generate a group ID to link these images together
+      final groupId = DateTime.now().millisecondsSinceEpoch.toString();
+      int successCount = 0;
+      String? lastError;
+
+      // Upload each image as a separate report
+      for (int i = 0; i < files.length; i++) {
+        final file = files[i];
+        try {
+          // Get file info
+          final fileName = file.path.split('/').last;
+          final fileType = fileName.toLowerCase().endsWith('.png') 
+              ? 'image/png' 
+              : 'image/jpeg';
+          final fileSize = await file.length();
+
+          // Get upload URL from backend
+          final uploadUrlResponse = await _apiService.getUploadUrl(
+            fileName: fileName,
+            fileType: fileType,
+            fileSize: fileSize,
+          );
+
+          if (!uploadUrlResponse['success']) {
+            lastError = 'Failed to get upload URL for ${fileName}';
+            continue;
+          }
+
+          final fileKey = uploadUrlResponse['data']['fileKey'];
+          final uploadUrl = uploadUrlResponse['data']['uploadUrl'];
+
+          // Upload file to Firebase Storage using presigned URL
+          final storageService = StorageService();
+          await storageService.uploadToStorage(
+            uploadUrl: uploadUrl,
+            file: file,
+            contentType: fileType,
+          );
+
+          // Submit report metadata
+          // Use base title for all images - they'll be grouped by title and date
+          final reportResponse = await _apiService.submitReport({
+            'fileKey': fileKey,
+            'fileName': fileName,
+            'fileType': 'image',
+            'title': title,
+            'reportDate': reportDate.toIso8601String().split('T')[0],
+            'category': category,
+            'doctorName': doctorName,
+            'clinicName': clinicName,
+          });
+
+          if (reportResponse['success']) {
+            successCount++;
+          } else {
+            lastError = 'Failed to submit ${fileName}';
+          }
+        } catch (e) {
+          lastError = 'Error uploading ${file.path.split('/').last}: $e';
+        }
+      }
+
+      if (successCount == 0) {
+        _error = lastError ?? 'Failed to upload images';
+        return false;
+      }
+
+      if (successCount < files.length) {
+        _error = 'Uploaded $successCount of ${files.length} images. ${lastError ?? ''}';
+      }
+
+      // Reload reports
+      await loadReports(userId);
+      return successCount > 0;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

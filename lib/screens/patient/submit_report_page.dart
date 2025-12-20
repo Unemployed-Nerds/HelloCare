@@ -24,6 +24,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
   final _reportDateController = TextEditingController();
   
   File? _selectedFile;
+  List<File> _selectedImages = [];
   DateTime? _reportDate;
 
   @override
@@ -49,11 +50,29 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      allowMultiple: true,
     );
 
-    if (result != null && result.files.single.path != null) {
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
-        _selectedFile = File(result.files.single.path!);
+        // If PDF is selected, only allow single PDF
+        final pdfFiles = result.files.where((f) => 
+          f.path != null && f.path!.toLowerCase().endsWith('.pdf')).toList();
+        final imageFiles = result.files.where((f) => 
+          f.path != null && !f.path!.toLowerCase().endsWith('.pdf')).toList();
+        
+        if (pdfFiles.isNotEmpty) {
+          // PDF selected - only allow one PDF
+          _selectedFile = File(pdfFiles.first.path!);
+          _selectedImages = [];
+        } else if (imageFiles.isNotEmpty) {
+          // Images selected - allow multiple images
+          _selectedFile = null;
+          _selectedImages = imageFiles
+              .where((f) => f.path != null)
+              .map((f) => File(f.path!))
+              .toList();
+        }
       });
     }
   }
@@ -75,10 +94,10 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedFile == null) {
+    if (_selectedFile == null && _selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a file'),
+          content: Text('Please select a file or images'),
           backgroundColor: AppTheme.errorRed,
         ),
       );
@@ -97,21 +116,43 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final reportProvider = Provider.of<ReportProvider>(context, listen: false);
 
-    final success = await reportProvider.submitReport(
-      userId: userProvider.currentUser!.userId,
-      file: _selectedFile!,
-      title: _titleController.text.trim(),
-      reportDate: _reportDate!,
-      category: _categoryController.text.trim().isEmpty
-          ? null
-          : _categoryController.text.trim(),
-      doctorName: _doctorNameController.text.trim().isEmpty
-          ? null
-          : _doctorNameController.text.trim(),
-      clinicName: _clinicNameController.text.trim().isEmpty
-          ? null
-          : _clinicNameController.text.trim(),
-    );
+    bool success = false;
+    
+    if (_selectedFile != null) {
+      // Single PDF or single image
+      success = await reportProvider.submitReport(
+        userId: userProvider.currentUser!.userId,
+        file: _selectedFile!,
+        title: _titleController.text.trim(),
+        reportDate: _reportDate!,
+        category: _categoryController.text.trim().isEmpty
+            ? null
+            : _categoryController.text.trim(),
+        doctorName: _doctorNameController.text.trim().isEmpty
+            ? null
+            : _doctorNameController.text.trim(),
+        clinicName: _clinicNameController.text.trim().isEmpty
+            ? null
+            : _clinicNameController.text.trim(),
+      );
+    } else if (_selectedImages.isNotEmpty) {
+      // Multiple images
+      success = await reportProvider.submitMultipleImages(
+        userId: userProvider.currentUser!.userId,
+        files: _selectedImages,
+        title: _titleController.text.trim(),
+        reportDate: _reportDate!,
+        category: _categoryController.text.trim().isEmpty
+            ? null
+            : _categoryController.text.trim(),
+        doctorName: _doctorNameController.text.trim().isEmpty
+            ? null
+            : _doctorNameController.text.trim(),
+        clinicName: _clinicNameController.text.trim().isEmpty
+            ? null
+            : _clinicNameController.text.trim(),
+      );
+    }
 
     if (success && mounted) {
       // Show success dialog
@@ -213,6 +254,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
   void _resetForm() {
     setState(() {
       _selectedFile = null;
+      _selectedImages = [];
       _reportDate = null;
       _titleController.clear();
       _categoryController.clear();
@@ -225,19 +267,141 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
   // Helper method to build file preview card
   Widget _buildFilePreview() {
-    if (_selectedFile == null) return const SizedBox.shrink();
+    if (_selectedFile == null && _selectedImages.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    final fileName = _selectedFile!.path.split('/').last;
-    final isImage = fileName.toLowerCase().endsWith('.jpg') ||
-        fileName.toLowerCase().endsWith('.jpeg') ||
-        fileName.toLowerCase().endsWith('.png');
-    final fileSize = _selectedFile!.statSync().size;
-    final fileSizeText = fileSize < 1024
-        ? '$fileSize B'
-        : fileSize < 1024 * 1024
-            ? '${(fileSize / 1024).toStringAsFixed(1)} KB'
-            : '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+    // Handle single PDF or single image
+    if (_selectedFile != null) {
+      final fileName = _selectedFile!.path.split('/').last;
+      final isImage = fileName.toLowerCase().endsWith('.jpg') ||
+          fileName.toLowerCase().endsWith('.jpeg') ||
+          fileName.toLowerCase().endsWith('.png');
+      final fileSize = _selectedFile!.statSync().size;
+      final fileSizeText = fileSize < 1024
+          ? '$fileSize B'
+          : fileSize < 1024 * 1024
+              ? '${(fileSize / 1024).toStringAsFixed(1)} KB'
+              : '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
 
+      return Card(
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: AppTheme.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        margin: const EdgeInsets.only(bottom: 24),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.surfaceVariant.withOpacity(0.6),
+                AppTheme.surfaceDark.withOpacity(0.4),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              // File preview thumbnail or icon
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: isImage
+                    ? Image.file(
+                        _selectedFile!,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryGreen.withOpacity(0.3),
+                              AppTheme.primaryGreenDark.withOpacity(0.2),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.picture_as_pdf,
+                          size: 48,
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 16),
+              // File info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      fileSizeText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isImage ? 'Image File' : 'PDF Document',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Remove button
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorRed.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: AppTheme.errorRed,
+                    size: 20,
+                  ),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedFile = null;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Handle multiple images with slider
     return Card(
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.3),
@@ -250,7 +414,6 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
       ),
       margin: const EdgeInsets.only(bottom: 24),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -262,94 +425,18 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
           ),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          children: [
-            // File preview thumbnail or icon
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: isImage
-                  ? Image.file(
-                      _selectedFile!,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.primaryGreen.withOpacity(0.3),
-                            AppTheme.primaryGreenDark.withOpacity(0.2),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.picture_as_pdf,
-                        size: 48,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 16),
-            // File info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    fileName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    fileSizeText,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isImage ? 'Image File' : 'PDF Document',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Remove button
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.errorRed.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.close,
-                  color: AppTheme.errorRed,
-                  size: 20,
-                ),
-              ),
-              onPressed: () {
-                setState(() {
-                  _selectedFile = null;
-                });
-              },
-            ),
-          ],
+        child: _ImageSliderPreview(
+          images: _selectedImages,
+          onRemove: (index) {
+            setState(() {
+              _selectedImages.removeAt(index);
+            });
+          },
+          onRemoveAll: () {
+            setState(() {
+              _selectedImages.clear();
+            });
+          },
         ),
       ),
     );
@@ -633,11 +720,12 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'PDF or Image (JPG, PNG)',
+                                'PDF or Image (JPG, PNG)\nSelect multiple images for a single report',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: AppTheme.textSecondary,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
@@ -873,5 +961,210 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
         ],
       ),
     );
+  }
+}
+
+/// Image slider preview widget with dots indicator
+class _ImageSliderPreview extends StatefulWidget {
+  final List<File> images;
+  final Function(int) onRemove;
+  final VoidCallback onRemoveAll;
+
+  const _ImageSliderPreview({
+    required this.images,
+    required this.onRemove,
+    required this.onRemoveAll,
+  });
+
+  @override
+  State<_ImageSliderPreview> createState() => _ImageSliderPreviewState();
+}
+
+class _ImageSliderPreviewState extends State<_ImageSliderPreview> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.images.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Header with file count and remove all button
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${widget.images.length} Image${widget.images.length > 1 ? 's' : ''} Selected',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorRed.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: AppTheme.errorRed,
+                    size: 20,
+                  ),
+                ),
+                onPressed: widget.onRemoveAll,
+                tooltip: 'Remove all images',
+              ),
+            ],
+          ),
+        ),
+        // Image slider
+        SizedBox(
+          height: 300,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        widget.images[index],
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 300,
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceDark,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.error_outline,
+                                color: AppTheme.errorRed,
+                                size: 48,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Remove button for individual image
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        onPressed: () => widget.onRemove(index),
+                        tooltip: 'Remove this image',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Dots indicator
+        if (widget.images.length > 1)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.images.length,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentIndex == index ? 10 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _currentIndex == index
+                        ? AppTheme.primaryGreen
+                        : AppTheme.primaryGreen.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // File info
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.images[_currentIndex].path.split('/').last,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _getFileSizeText(widget.images[_currentIndex]),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getFileSizeText(File file) {
+    final fileSize = file.statSync().size;
+    return fileSize < 1024
+        ? '$fileSize B'
+        : fileSize < 1024 * 1024
+            ? '${(fileSize / 1024).toStringAsFixed(1)} KB'
+            : '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }
