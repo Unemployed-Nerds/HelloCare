@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "843661331522",
+    "project_id": "hellocare-fd1b7",
+    "storage_bucket": "hellocare-fd1b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:843661331522:android:6ce63fb46ce310dbb871db",
+        "android_client_info": {
+          "package_name": "com.unemloyednerds.hellocare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5XOWw4lFmQYtZTDXpH6KqzPAYCzEk8L8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
