@@ -31,6 +31,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   bool _isLoadingUrl = false;
   String? _urlError;
   bool _isDeleting = false;
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
@@ -39,8 +40,11 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     if (widget.downloadUrl != null && widget.downloadUrl!.isNotEmpty) {
       _downloadUrl = widget.downloadUrl;
       _isLoadingUrl = false;
+      _isInitialLoad = false;
     } else {
       // Otherwise, load it from the API
+      // Set loading state immediately to prevent blank flash
+      _isLoadingUrl = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadDownloadUrl();
       });
@@ -62,6 +66,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         setState(() {
           _downloadUrl = url;
           _isLoadingUrl = false;
+          _isInitialLoad = false;
           if (url == null || url.isEmpty) {
             _urlError = reportProvider.error ?? 'Failed to get download URL';
             print('Download URL is null or empty. Error: ${reportProvider.error}');
@@ -76,6 +81,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       if (mounted) {
         setState(() {
           _isLoadingUrl = false;
+          _isInitialLoad = false;
           _urlError = 'Error loading file: $e';
         });
       }
@@ -97,6 +103,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
+            backgroundColor: AppTheme.backgroundGreen,
             appBar: AppBar(title: const Text('Report Details')),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -104,12 +111,23 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
         if (snapshot.hasError || snapshot.data == null) {
           return Scaffold(
+            backgroundColor: AppTheme.backgroundGreen,
             appBar: AppBar(title: const Text('Report Details')),
             body: const Center(child: Text('Report not found')),
           );
         }
 
         final report = snapshot.data!;
+        
+        // Show loading state until download URL is ready (prevents blank flash)
+        if (_isInitialLoad || (_isLoadingUrl && _downloadUrl == null)) {
+          return Scaffold(
+            backgroundColor: AppTheme.backgroundGreen,
+            appBar: AppBar(title: const Text('Report Details')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        
         return _buildReportViewFromModel(report);
       },
     );
@@ -242,12 +260,12 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // PDF/Image Viewer Section
-            if (_isLoadingUrl)
+            if (_isLoadingUrl && _downloadUrl == null)
               const SizedBox(
                 height: 600,
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (_urlError != null || _downloadUrl == null)
+            else if (_urlError != null || (_downloadUrl == null && !_isLoadingUrl))
               SizedBox(
                 height: 600,
                 child: Center(
@@ -399,12 +417,12 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // PDF/Image Viewer Section (no background)
-                if (_isLoadingUrl)
+                if (_isLoadingUrl && _downloadUrl == null)
                   const SizedBox(
                     height: 600,
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else if (_urlError != null || _downloadUrl == null)
+                else if (_urlError != null || (_downloadUrl == null && !_isLoadingUrl))
                   SizedBox(
                     height: 600,
                     child: Center(
