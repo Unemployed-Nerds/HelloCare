@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Dark Mode Webtoon/Manga Color Palette - Vibrant with Glassmorphism
-  static const Color primaryGreen = Color(0xFF6BCB77); // Bright, vibrant green
-  static const Color primaryGreenLight = Color(0xFF95D5A3);
-  static const Color primaryGreenDark = Color(0xFF4FA85C);
-  static const Color accentGreen = Color(0xFFA8E6B8);
-  static const Color lightGreen = Color(0xFFC8F4D4);
-  static const Color darkGreen = Color(0xFF3D8B47);
+  // New Color Palette - Dark Theme
+  // Shadow Grey: #232020
+  // Chocolate Plum: #553739
+  // Toffee Brown: #955e42
+  // Palm Leaf: #9c914f
+  // Palm Leaf 2: #748e54
   
-  // Dark Mode Background Colors - Deep with gradients
-  static const Color backgroundDark = Color(0xFF0A0E1A); // Deep dark blue-black
-  static const Color surfaceDark = Color(0xFF1A1F2E); // Dark surface
-  static const Color surfaceVariant = Color(0xFF252B3D); // Elevated surfaces
-  static const Color backgroundGreen = Color(0xFF0D1A0F); // Dark green tint
+  // Primary Colors - Palm Leaf variants
+  static const Color primaryGreen = Color(0xFF9C914F); // Palm Leaf - main primary
+  static const Color primaryGreenLight = Color(0xFFB5AB6F); // Lighter Palm Leaf
+  static const Color primaryGreenDark = Color(0xFF748E54); // Palm Leaf 2
+  static const Color accentGreen = Color(0xFFA8B57A); // Light green accent
+  static const Color lightGreen = Color(0xFFC4C99A); // Very light green
+  static const Color darkGreen = Color(0xFF5F6F44); // Darker Palm Leaf 2
+  
+  // Background Colors - Shadow Grey and Chocolate Plum
+  static const Color backgroundDark = Color(0xFF232020); // Shadow Grey - main background
+  static const Color surfaceDark = Color(0xFF553739); // Chocolate Plum - dark surface
+  static const Color surfaceVariant = Color(0xFF6B4A4D); // Lighter Chocolate Plum variant
+  static const Color backgroundGreen = Color(0xFF2A2B1F); // Dark green tint (Shadow Grey + Palm Leaf)
   
   // Glassmorphism Colors
   static const Color glassWhite = Color(0xFFFFFFFF);
@@ -29,18 +36,19 @@ class AppTheme {
   // Additional Colors - Dark Mode
   static const Color grey = Color(0xFF9E9E9E);
   static const Color lightGrey = Color(0xFF4A4A4A);
-  static const Color darkGrey = Color(0xFF2A2A2A);
-  static const Color errorRed = Color(0xFFFF6B6B); // Bright, playful red
+  static const Color darkGrey = Color(0xFF3A3A3A); // Adjusted for new palette
+  static const Color errorRed = Color(0xFF955E42); // Toffee Brown for errors/warnings
+  static const Color dangerRed = Color(0xFFDC3545); // Danger red for logout and critical actions
   
-  // Webtoon Accent Colors - Dark Mode Variants
-  static const Color accentPink = Color(0xFFFF8CC8);
-  static const Color accentBlue = Color(0xFF8CC8FF);
-  static const Color accentYellow = Color(0xFFFFE08C);
-  static const Color accentPurple = Color(0xFFC88CFF);
+  // Accent Colors - Using palette colors
+  static const Color accentPink = Color(0xFF955E42); // Toffee Brown
+  static const Color accentBlue = Color(0xFF748E54); // Palm Leaf 2 variant
+  static const Color accentYellow = Color(0xFF9C914F); // Palm Leaf
+  static const Color accentPurple = Color(0xFF553739); // Chocolate Plum
   
   // Divider and Border Colors - Dark Mode
-  static const Color divider = Color(0xFF2A2F3D);
-  static const Color border = Color(0xFF3A3F4D);
+  static const Color divider = Color(0xFF3A3535); // Darker Shadow Grey variant
+  static const Color border = Color(0xFF4A3F3F); // Shadow Grey + Chocolate Plum mix
   
   static ThemeData get darkTheme {
     final colorScheme = ColorScheme.dark(
@@ -48,16 +56,16 @@ class AppTheme {
       onPrimary: black,
       primaryContainer: darkGreen,
       onPrimaryContainer: lightGreen,
-      secondary: accentPink,
-      onSecondary: black,
-      secondaryContainer: Color(0xFF2A1F2A),
-      onSecondaryContainer: accentPink,
-      tertiary: accentBlue,
-      onTertiary: black,
-      error: errorRed,
+      secondary: accentPink, // Toffee Brown
+      onSecondary: white,
+      secondaryContainer: Color(0xFF6B4A3D), // Darker Toffee Brown
+      onSecondaryContainer: lightGreen,
+      tertiary: accentBlue, // Palm Leaf 2
+      onTertiary: white,
+      error: errorRed, // Toffee Brown
       onError: white,
-      errorContainer: Color(0xFF3A1F1F),
-      onErrorContainer: errorRed,
+      errorContainer: Color(0xFF6B4A3D), // Darker Toffee Brown
+      onErrorContainer: lightGreen,
       surface: surfaceDark,
       onSurface: textPrimary,
       onSurfaceVariant: textSecondary,
@@ -107,11 +115,11 @@ class AppTheme {
         ),
       ),
       
-      // Cards - Dark Mode with Glassmorphism
+      // Cards - Dark Mode with Glassmorphism and Neon Glow
       cardTheme: CardThemeData(
-        color: surfaceVariant.withOpacity(0.6),
-        elevation: 8,
-        shadowColor: Colors.black.withOpacity(0.5),
+        color: surfaceVariant.withOpacity(0.4),
+        elevation: 0,
+        shadowColor: primaryGreen.withOpacity(0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
           side: BorderSide(
@@ -122,22 +130,28 @@ class AppTheme {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
-      // Elevated Buttons - Webtoon Style (Bubbly)
+      // Elevated Buttons - Webtoon Style with Neon Glow
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
           foregroundColor: white,
-          elevation: 6,
-          shadowColor: primaryGreen.withOpacity(0.4),
+          elevation: 0,
+          shadowColor: primaryGreen.withOpacity(0.5),
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: white.withOpacity(0.3),
+              width: 1.5,
+            ),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
+        ).copyWith(
+          elevation: MaterialStateProperty.all(0),
         ),
       ),
       
@@ -264,15 +278,15 @@ class AppTheme {
         size: 24,
       ),
       
-      // Dialog - Dark Mode with Glassmorphism
+      // Dialog - Dark Mode with Glassmorphism and Neon Glow
       dialogTheme: DialogThemeData(
-        backgroundColor: surfaceVariant.withOpacity(0.95),
-        elevation: 16,
-        shadowColor: Colors.black.withOpacity(0.6),
+        backgroundColor: surfaceVariant.withOpacity(0.9),
+        elevation: 0,
+        shadowColor: primaryGreen.withOpacity(0.4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
           side: BorderSide(
-            color: white.withOpacity(0.1),
+            color: white.withOpacity(0.2),
             width: 2,
           ),
         ),
@@ -310,11 +324,11 @@ class AppTheme {
         ),
       ),
       
-      // Floating Action Button
+      // Floating Action Button with Neon Glow
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryGreen,
         foregroundColor: black,
-        elevation: 4,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

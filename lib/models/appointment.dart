@@ -33,6 +33,40 @@ class Appointment {
     this.updatedAt,
   });
 
+  // Helper method to safely convert date values from Firestore
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) {
+      throw ArgumentError('Date value cannot be null');
+    }
+    
+    // If it's already a DateTime, return it
+    if (value is DateTime) {
+      return value;
+    }
+    
+    // If it's a Timestamp, convert it
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    
+    // If it's a string (ISO format), parse it
+    if (value is String) {
+      // Handle date-only strings (YYYY-MM-DD) for appointment dates
+      if (value.length == 10 && value.split('-').length == 3) {
+        return DateTime.parse('${value}T00:00:00Z');
+      }
+      // Handle full ISO strings
+      return DateTime.parse(value);
+    }
+    
+    // If it's a number (milliseconds since epoch)
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    
+    throw ArgumentError('Unable to parse date value: $value (type: ${value.runtimeType})');
+  }
+
   factory Appointment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Appointment(
@@ -42,15 +76,15 @@ class Appointment {
       doctorSpecialization: data['doctorSpecialization'],
       patientId: data['patientId'] ?? '',
       patientName: data['patientName'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
+      date: _parseDate(data['date']),
       time: data['time'] ?? '',
       duration: data['duration'] ?? 30,
       status: data['status'] ?? 'pending',
       notes: data['notes'],
       doctorNotes: data['doctorNotes'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: _parseDate(data['createdAt']),
       updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
+          ? _parseDate(data['updatedAt'])
           : null,
     );
   }

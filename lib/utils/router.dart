@@ -14,6 +14,7 @@ import '../screens/patient/ai_summary_page.dart';
 import '../screens/patient/suggestions_page.dart';
 import '../screens/patient/book_appointment_page.dart';
 import '../screens/patient/appointments_page.dart';
+import '../screens/patient/appointment_detail_page.dart';
 import '../screens/patient/share_reports_page.dart';
 import '../screens/patient/export_reports_page.dart';
 import '../screens/patient/profile_page.dart';
@@ -223,6 +224,16 @@ GoRouter createAppRouter(UserProvider userProvider) {
       ),
     ),
     GoRoute(
+      path: '/patient/appointment/:appointmentId',
+      builder: (context, state) {
+        final appointmentId = state.pathParameters['appointmentId']!;
+        return BackGestureWrapper(
+          currentLocation: state.matchedLocation,
+          child: AppointmentDetailPage(appointmentId: appointmentId),
+        );
+      },
+    ),
+    GoRoute(
       path: '/patient/share-reports',
       builder: (context, state) => BackGestureWrapper(
         currentLocation: state.matchedLocation,
@@ -287,6 +298,26 @@ GoRouter createAppRouter(UserProvider userProvider) {
         return BackGestureWrapper(
           currentLocation: state.matchedLocation,
           child: ViewPatientReportsPage(qrToken: qrToken),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/doctor/report/:reportId',
+      builder: (context, state) {
+        final reportId = state.pathParameters['reportId']!;
+        return BackGestureWrapper(
+          currentLocation: state.matchedLocation,
+          child: ReportDetailPage(reportId: reportId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/doctor/appointment/:appointmentId',
+      builder: (context, state) {
+        final appointmentId = state.pathParameters['appointmentId']!;
+        return BackGestureWrapper(
+          currentLocation: state.matchedLocation,
+          child: AppointmentDetailPage(appointmentId: appointmentId),
         );
       },
     ),

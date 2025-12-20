@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -124,8 +125,16 @@ class UserProvider with ChangeNotifier {
       );
       await loadUserData(userCredential.user!.uid);
       return true;
+    } on FirebaseAuthException catch (e) {
+      // Extract meaningful error message from FirebaseAuthException
+      _error = e.message ?? e.code ?? 'Login failed';
+      return false;
     } catch (e) {
-      _error = e.toString();
+      // Handle other exceptions
+      _error = e.toString().replaceFirst('Exception: ', '');
+      if (_error!.startsWith('Login failed')) {
+        _error = 'Login failed. Please check your credentials and try again.';
+      }
       return false;
     } finally {
       _isLoading = false;

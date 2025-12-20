@@ -91,27 +91,77 @@ class FirestoreService {
   }
 
   Stream<List<Appointment>> getPatientAppointmentsStream(String patientId) {
+    // Use simpler query with single orderBy to avoid composite index requirement
+    // Sort by time on client side instead
     return _firestore
         .collection('appointments')
         .where('patientId', isEqualTo: patientId)
         .orderBy('date', descending: true)
-        .orderBy('time', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Appointment.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final appointments = <Appointment>[];
+          for (var doc in snapshot.docs) {
+            try {
+              appointments.add(Appointment.fromFirestore(doc));
+            } catch (e) {
+              print('Error parsing appointment document ${doc.id}: $e');
+              // Skip invalid documents instead of breaking the entire stream
+            }
+          }
+          // Sort by date (descending) and time (descending) on client side
+          appointments.sort((a, b) {
+            final dateCompare = b.date.compareTo(a.date);
+            if (dateCompare != 0) return dateCompare;
+            return b.time.compareTo(a.time);
+          });
+          return appointments;
+        })
+        .handleError((error, stackTrace) {
+          print('Error in getPatientAppointmentsStream: $error');
+          print('Stack trace: $stackTrace');
+          // If the error is about missing index, provide helpful message
+          if (error.toString().contains('index')) {
+            throw Exception('Firestore index required. Please check Firebase console for index creation link.');
+          }
+          // Re-throw to allow StreamBuilder to catch it
+          throw error;
+        });
   }
 
   Stream<List<Appointment>> getDoctorAppointmentsStream(String doctorId) {
+    // Remove orderBy completely to avoid any index requirement
+    // Sort entirely on client side
+    print('Starting getDoctorAppointmentsStream for doctorId: $doctorId');
     return _firestore
         .collection('appointments')
         .where('doctorId', isEqualTo: doctorId)
-        .orderBy('date', descending: true)
-        .orderBy('time', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Appointment.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          print('Received ${snapshot.docs.length} appointment documents');
+          final appointments = <Appointment>[];
+          for (var doc in snapshot.docs) {
+            try {
+              appointments.add(Appointment.fromFirestore(doc));
+            } catch (e) {
+              print('Error parsing appointment document ${doc.id}: $e');
+              // Skip invalid documents instead of breaking the entire stream
+            }
+          }
+          // Sort by date (descending) and time (descending) on client side
+          appointments.sort((a, b) {
+            final dateCompare = b.date.compareTo(a.date);
+            if (dateCompare != 0) return dateCompare;
+            return b.time.compareTo(a.time);
+          });
+          print('Returning ${appointments.length} sorted appointments');
+          return appointments;
+        })
+        .handleError((error, stackTrace) {
+          print('Error in getDoctorAppointmentsStream: $error');
+          print('Stack trace: $stackTrace');
+          // Re-throw to allow StreamBuilder to catch it
+          throw error;
+        });
   }
 
   Future<List<Appointment>> getPatientAppointments(String patientId) async {
@@ -125,13 +175,34 @@ class FirestoreService {
   }
 
   Future<List<Appointment>> getDoctorAppointments(String doctorId) async {
-    final snapshot = await _firestore
-        .collection('appointments')
-        .where('doctorId', isEqualTo: doctorId)
-        .orderBy('date', descending: true)
-        .orderBy('time', descending: true)
-        .get();
-    return snapshot.docs.map((doc) => Appointment.fromFirestore(doc)).toList();
+    try {
+      final query = _firestore
+          .collection('appointments')
+          .where('doctorId', isEqualTo: doctorId)
+          .orderBy('date', descending: true)
+          .orderBy('time', descending: true);
+      
+      final snapshot = await query.get();
+      
+      final appointments = <Appointment>[];
+      for (var doc in snapshot.docs) {
+        try {
+          final appointment = Appointment.fromFirestore(doc);
+          appointments.add(appointment);
+        } catch (e) {
+          // Skip invalid documents
+        }
+      }
+      
+      return appointments;
+    } catch (e) {
+      // Check for specific Firestore errors
+      if (e.toString().contains('index')) {
+        throw Exception('Firestore index required. Please check Firebase console for index creation link.');
+      }
+      
+      rethrow;
+    }
   }
 
   Future<Appointment?> getAppointment(String appointmentId) async {
@@ -155,11 +226,22 @@ class FirestoreService {
 
   // Users
   Future<User?> getUser(String userId) async {
-    final doc = await _firestore.collection('users').doc(userId).get();
-    if (doc.exists) {
-      return User.fromFirestore(doc);
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      
+      if (doc.exists) {
+        try {
+          final user = User.fromFirestore(doc);
+          return user;
+        } catch (e) {
+          rethrow;
+        }
+      } else {
+        return null;
+      }
+    } catch (e) {
+      rethrow;
     }
-    return null;
   }
 
   Future<void> updateUser(User user) async {

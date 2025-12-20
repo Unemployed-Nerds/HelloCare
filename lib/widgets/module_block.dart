@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
+import '../utils/glass_effects.dart';
 import '../models/module_config.dart';
 
 class ModuleBlock extends StatelessWidget {
@@ -14,80 +15,46 @@ class ModuleBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-          color: AppTheme.white.withOpacity(0.1),
-          width: 2,
-        ),
+    return Container(
+      decoration: GlassEffects.glassCard(
+        primaryColor: AppTheme.surfaceVariant,
+        accentColor: AppTheme.primaryGreen,
+        opacity: 0.4,
+        borderRadius: 24.0,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          decoration: BoxDecoration(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.surfaceVariant.withOpacity(0.8),
-                AppTheme.surfaceDark.withOpacity(0.6),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryGreen.withOpacity(0.2),
-                blurRadius: 12,
-                offset: Offset(0, 6),
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              module.icon.startsWith('assets/')
-                  ? Image.asset(
-                      module.icon,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    )
-                  : Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppTheme.primaryGreen.withOpacity(0.3),
-                            AppTheme.primaryGreenDark.withOpacity(0.2),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        module.icon,
-                        style: const TextStyle(fontSize: 48),
+            child: module.icon.startsWith('assets/')
+                ? Image.asset(
+                    module.icon,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  )
+                : Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppTheme.primaryGreen.withOpacity(0.3),
+                          AppTheme.primaryGreenDark.withOpacity(0.2),
+                        ],
                       ),
                     ),
-              // Glassmorphism overlay
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: AppTheme.white.withOpacity(0.1),
-                    width: 1,
+                    alignment: Alignment.center,
+                    child: Text(
+                      module.icon,
+                      style: const TextStyle(fontSize: 48),
+                    ),
                   ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

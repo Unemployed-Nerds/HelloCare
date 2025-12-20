@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import '../models/user.dart' as models;
 import 'api_service.dart';
 
@@ -107,29 +108,105 @@ class AuthService {
     // Determine which login endpoint to use based on role or try both
     Map<String, dynamic> response;
     
-    if (role == 'patient') {
-      response = await _apiService.patientLogin({
-        'email': email,
-        'password': password,
-      });
-    } else if (role == 'doctor') {
-      response = await _apiService.doctorLogin({
-        'email': email,
-        'password': password,
-      });
-    } else {
-      // Try patient first, then doctor if it fails
-      try {
+    try {
+      if (role == 'patient') {
         response = await _apiService.patientLogin({
           'email': email,
           'password': password,
         });
-      } catch (e) {
+      } else if (role == 'doctor') {
         response = await _apiService.doctorLogin({
           'email': email,
           'password': password,
         });
+      } else {
+        // Try patient first, then doctor if it fails
+        try {
+          response = await _apiService.patientLogin({
+            'email': email,
+            'password': password,
+          });
+        } on DioException catch (e) {
+          // If patient login fails with specific error, try doctor login
+          response = await _apiService.doctorLogin({
+            'email': email,
+            'password': password,
+          });
+        } catch (e) {
+          // For other errors, still try doctor login
+          response = await _apiService.doctorLogin({
+            'email': email,
+            'password': password,
+          });
+        }
       }
+    } on DioException catch (e) {
+      // Extract error message from DioException
+      String errorMessage = 'Login failed';
+      final statusCode = e.response?.statusCode;
+      
+      if (e.error is Map<String, dynamic>) {
+        final errorMap = e.error as Map<String, dynamic>;
+        errorMessage = errorMap['message']?.toString() ?? errorMessage;
+      } else if (e.response?.data is Map<String, dynamic>) {
+        final errorData = e.response!.data as Map<String, dynamic>;
+        errorMessage = errorData['error']?['message'] ?? 
+                      errorData['message'] ?? 
+                      errorMessage;
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+      
+      // Map status codes to Firebase Auth error codes
+      String errorCode = 'login-failed';
+      switch (statusCode) {
+        case 401:
+          errorCode = 'wrong-password';
+          break;
+        case 403:
+          errorCode = 'user-disabled';
+          break;
+        case 404:
+          errorCode = 'user-not-found';
+          break;
+        case 429:
+          errorCode = 'too-many-requests';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          errorCode = 'network-request-failed';
+          break;
+        default:
+          errorCode = 'login-failed';
+      }
+      
+      throw firebase_auth.FirebaseAuthException(
+        code: errorCode,
+        message: errorMessage,
+      );
+    } catch (e) {
+      // Handle other exceptions
+      if (e is firebase_auth.FirebaseAuthException) {
+        rethrow;
+      }
+      
+      String errorMessage = 'Login failed';
+      if (e is DioException) {
+        final errorData = e.response?.data;
+        if (errorData is Map<String, dynamic>) {
+          errorMessage = errorData['error']?['message'] ?? 
+                        errorData['message'] ?? 
+                        errorMessage;
+        }
+      } else {
+        errorMessage = e.toString();
+      }
+      
+      throw firebase_auth.FirebaseAuthException(
+        code: 'login-failed',
+        message: errorMessage,
+      );
     }
 
     if (!response['success']) {

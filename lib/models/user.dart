@@ -46,32 +46,70 @@ class User {
     required this.updatedAt,
   });
 
+  // Helper method to safely parse date values from Firestore
+  static DateTime _parseDate(dynamic value, {DateTime? defaultValue}) {
+    if (value == null) {
+      return defaultValue ?? DateTime.now();
+    }
+    
+    // If it's already a DateTime, return it
+    if (value is DateTime) {
+      return value;
+    }
+    
+    // If it's a Timestamp, convert it
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    
+    // If it's a string (ISO format), parse it
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        return defaultValue ?? DateTime.now();
+      }
+    }
+    
+    // If it's a number (milliseconds since epoch)
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    
+    return defaultValue ?? DateTime.now();
+  }
+
   factory User.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return User(
-      userId: doc.id,
-      email: data['email'] ?? '',
-      name: data['name'] ?? '',
-      role: data['role'] ?? '',
-      phone: data['phone'],
-      dateOfBirth: data['dateOfBirth'] != null
-          ? (data['dateOfBirth'] as Timestamp).toDate()
-          : null,
-      medicalHistory: data['medicalHistory'],
-      allergies: data['allergies'] != null
-          ? List<String>.from(data['allergies'])
-          : null,
-      emergencyContact: data['emergencyContact'],
-      emergencyContactPhone: data['emergencyContactPhone'],
-      specialization: data['specialization'],
-      yearsOfExperience: data['yearsOfExperience'],
-      bio: data['bio'],
-      rating: data['rating']?.toDouble(),
-      reviewCount: data['reviewCount'],
-      profileImageUrl: data['profileImageUrl'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-    );
+    
+    try {
+      return User(
+        userId: doc.id,
+        email: data['email'] ?? '',
+        name: data['name'] ?? '',
+        role: data['role'] ?? '',
+        phone: data['phone'],
+        dateOfBirth: data['dateOfBirth'] != null
+            ? _parseDate(data['dateOfBirth'])
+            : null,
+        medicalHistory: data['medicalHistory'],
+        allergies: data['allergies'] != null
+            ? List<String>.from(data['allergies'])
+            : null,
+        emergencyContact: data['emergencyContact'],
+        emergencyContactPhone: data['emergencyContactPhone'],
+        specialization: data['specialization'],
+        yearsOfExperience: data['yearsOfExperience'],
+        bio: data['bio'],
+        rating: data['rating']?.toDouble(),
+        reviewCount: data['reviewCount'],
+        profileImageUrl: data['profileImageUrl'],
+        createdAt: _parseDate(data['createdAt'], defaultValue: DateTime.now()),
+        updatedAt: _parseDate(data['updatedAt'], defaultValue: DateTime.now()),
+      );
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toFirestore() {

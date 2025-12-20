@@ -8,8 +8,8 @@ class ApiService {
   ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 300),
+      receiveTimeout: const Duration(seconds: 300),
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -87,8 +87,66 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> patientLogin(Map<String, dynamic> data) async {
-    final response = await _dio.post('/auth/patient/login', data: data);
-    return response.data;
+    try {
+      final response = await _dio.post('/auth/patient/login', data: data);
+      return response.data;
+    } on DioException catch (e) {
+      // Handle different HTTP status codes
+      final statusCode = e.response?.statusCode;
+      final errorData = e.response?.data;
+      
+      String errorMessage = 'Login failed';
+      if (errorData is Map<String, dynamic>) {
+        errorMessage = errorData['error']?['message'] ?? 
+                      errorData['message'] ?? 
+                      errorMessage;
+      }
+      
+      switch (statusCode) {
+        case 401:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Invalid email or password';
+          break;
+        case 403:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Access forbidden. Your account may be suspended.';
+          break;
+        case 404:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'User not found';
+          break;
+        case 429:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Too many login attempts. Please try again later.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Server error. Please try again later.';
+          break;
+        default:
+          if (errorMessage == 'Login failed') {
+            errorMessage = 'Network error. Please check your connection.';
+          }
+      }
+      
+      // Update response data with formatted error message for easier extraction
+      if (e.response != null && errorData is Map<String, dynamic>) {
+        errorData['error'] = {
+          'message': errorMessage,
+          'statusCode': statusCode,
+        };
+        errorData['message'] = errorMessage;
+      }
+      
+      // Re-throw the original exception (response data is updated)
+      rethrow;
+    } catch (e) {
+      // Re-throw DioException as-is, wrap other exceptions
+      if (e is DioException) {
+        rethrow;
+      }
+      throw DioException(
+        requestOptions: RequestOptions(path: '/auth/patient/login'),
+        error: 'Unexpected error: ${e.toString()}',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> doctorSignup(Map<String, dynamic> data) async {
@@ -97,8 +155,66 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> doctorLogin(Map<String, dynamic> data) async {
-    final response = await _dio.post('/auth/doctor/login', data: data);
-    return response.data;
+    try {
+      final response = await _dio.post('/auth/doctor/login', data: data);
+      return response.data;
+    } on DioException catch (e) {
+      // Handle different HTTP status codes
+      final statusCode = e.response?.statusCode;
+      final errorData = e.response?.data;
+      
+      String errorMessage = 'Login failed';
+      if (errorData is Map<String, dynamic>) {
+        errorMessage = errorData['error']?['message'] ?? 
+                      errorData['message'] ?? 
+                      errorMessage;
+      }
+      
+      switch (statusCode) {
+        case 401:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Invalid email or password';
+          break;
+        case 403:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Access forbidden. Your account may be suspended.';
+          break;
+        case 404:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'User not found';
+          break;
+        case 429:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Too many login attempts. Please try again later.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          errorMessage = errorMessage.isNotEmpty ? errorMessage : 'Server error. Please try again later.';
+          break;
+        default:
+          if (errorMessage == 'Login failed') {
+            errorMessage = 'Network error. Please check your connection.';
+          }
+      }
+      
+      // Update response data with formatted error message for easier extraction
+      if (e.response != null && errorData is Map<String, dynamic>) {
+        errorData['error'] = {
+          'message': errorMessage,
+          'statusCode': statusCode,
+        };
+        errorData['message'] = errorMessage;
+      }
+      
+      // Re-throw the original exception (response data is updated)
+      rethrow;
+    } catch (e) {
+      // Re-throw DioException as-is, wrap other exceptions
+      if (e is DioException) {
+        rethrow;
+      }
+      throw DioException(
+        requestOptions: RequestOptions(path: '/auth/doctor/login'),
+        error: 'Unexpected error: ${e.toString()}',
+      );
+    }
   }
 
   // Reports

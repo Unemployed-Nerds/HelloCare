@@ -117,16 +117,22 @@ class CacheService {
   }
 
   // Module Configuration
-  Future<void> savePinnedModules(List<ModuleConfig> modules) async {
+  Future<void> savePinnedModules(List<ModuleConfig> modules, {String? role}) async {
     final prefs = await SharedPreferences.getInstance();
     final modulesJson = modules.map((m) => m.toMap()).toList();
-    await prefs.setString('pinned_modules', jsonEncode(modulesJson));
+    final key = role == 'doctor' 
+        ? 'doctor_pinned_modules' 
+        : 'pinned_modules';
+    await prefs.setString(key, jsonEncode(modulesJson));
   }
 
-  Future<List<ModuleConfig>> getPinnedModules() async {
+  Future<List<ModuleConfig>> getPinnedModules({String? role}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final modulesJson = prefs.getString('pinned_modules');
+      final key = role == 'doctor' 
+          ? 'doctor_pinned_modules' 
+          : 'pinned_modules';
+      final modulesJson = prefs.getString(key);
       if (modulesJson != null) {
         final decoded = jsonDecode(modulesJson) as List;
         return decoded.map((json) => ModuleConfig.fromMap(json)).toList();

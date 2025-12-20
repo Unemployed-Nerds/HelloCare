@@ -24,7 +24,12 @@ class _ScanQRPageState extends State<ScanQRPage> {
   Future<void> _handleQRCode(String qrToken) async {
     try {
       final response = await _apiService.validateQRToken(qrToken);
-      if (response['success'] && response['data']['valid'] == true) {
+      
+      // Safely check response structure - ensure data is a Map before accessing
+      final success = response['success'] == true;
+      final data = response['data'];
+      
+      if (success && data is Map<String, dynamic> && data['valid'] == true) {
         if (mounted) {
           context.go('/doctor/patient-reports?token=$qrToken');
         }
@@ -62,8 +67,9 @@ class _ScanQRPageState extends State<ScanQRPage> {
               onDetect: (capture) {
                 final List<Barcode> barcodes = capture.barcodes;
                 for (final barcode in barcodes) {
-                  if (barcode.rawValue != null) {
-                    _handleQRCode(barcode.rawValue!);
+                  final rawValue = barcode.rawValue;
+                  if (rawValue != null) {
+                    _handleQRCode(rawValue);
                     break;
                   }
                 }

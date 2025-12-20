@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/constants.dart';
+import '../../utils/glass_effects.dart';
 import '../../providers/module_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/module_block.dart';
@@ -78,6 +79,26 @@ class PatientMainPage extends StatefulWidget {
 }
 
 class _PatientMainPageState extends State<PatientMainPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeModules();
+    });
+  }
+
+  Future<void> _initializeModules() async {
+    final moduleProvider = Provider.of<ModuleProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final role = userProvider.currentUser?.role ?? 'patient';
+    
+    // Check if modules are already initialized by checking if allModules is empty
+    if (moduleProvider.allModules.isEmpty || 
+        (role == 'patient' && moduleProvider.allModules.any((m) => m.id.startsWith('doctor_')))) {
+      await moduleProvider.initializeForRole(role);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final moduleProvider = Provider.of<ModuleProvider>(context);
@@ -415,27 +436,11 @@ class _PatientMainPageState extends State<PatientMainPage> {
             },
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryGreen.withOpacity(0.15),
-                    AppTheme.primaryGreenDark.withOpacity(0.1),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppTheme.primaryGreen.withOpacity(0.2),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryGreen.withOpacity(0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              decoration: GlassEffects.glassCard(
+                primaryColor: AppTheme.surfaceVariant,
+                accentColor: AppTheme.primaryGreen,
+                opacity: 0.3,
+                borderRadius: 20.0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,6 +457,17 @@ class _PatientMainPageState extends State<PatientMainPage> {
                             ],
                           ),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.primaryGreen.withOpacity(0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryGreen.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.wb_sunny_outlined,
@@ -583,8 +599,6 @@ class _PatientMainPageState extends State<PatientMainPage> {
           ...moduleProvider.allModules.asMap().entries.map((entry) {
             final index = entry.key;
             final module = entry.value;
-            final isPinned = moduleProvider.pinnedModules
-                .any((pinned) => pinned.id == module.id);
               return _DelayedAnimation(
                 delay: Duration(milliseconds: index * 120),
                 duration: const Duration(milliseconds: 350),
@@ -594,21 +608,14 @@ class _PatientMainPageState extends State<PatientMainPage> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: isPinned
-                          ? [
-                              AppTheme.primaryGreen.withOpacity(0.2),
-                              AppTheme.primaryGreenDark.withOpacity(0.1),
-                            ]
-                          : [
-                              AppTheme.surfaceVariant.withOpacity(0.3),
-                              AppTheme.surfaceDark.withOpacity(0.2),
-                            ],
+                      colors: [
+                        AppTheme.surfaceVariant.withOpacity(0.3),
+                        AppTheme.surfaceDark.withOpacity(0.2),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isPinned
-                          ? AppTheme.primaryGreen.withOpacity(0.5)
-                          : AppTheme.white.withOpacity(0.1),
+                      color: AppTheme.white.withOpacity(0.1),
                       width: 2,
                     ),
                     boxShadow: [
@@ -648,50 +655,14 @@ class _PatientMainPageState extends State<PatientMainPage> {
                     ),
                     title: Text(
                       module.title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: isPinned
-                            ? AppTheme.primaryGreen
-                            : AppTheme.textPrimary,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
-                    trailing: IconButton(
-                      icon: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isPinned
-                                ? [
-                                    AppTheme.primaryGreen,
-                                    AppTheme.primaryGreenDark,
-                                  ]
-                                : [
-                                    AppTheme.lightGrey,
-                                    AppTheme.darkGrey,
-                                  ],
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isPinned
-                                      ? AppTheme.primaryGreen
-                                      : AppTheme.lightGrey)
-                                  .withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                          color: isPinned ? AppTheme.white : AppTheme.grey,
-                          size: 18,
-                        ),
-                      ),
-                      onPressed: () {
-                        moduleProvider.togglePin(module.id);
-                        Navigator.pop(context);
-                      },
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: AppTheme.textSecondary,
                     ),
                     onTap: () {
                       Navigator.pop(context);
@@ -706,24 +677,24 @@ class _PatientMainPageState extends State<PatientMainPage> {
             delay: Duration(milliseconds: moduleProvider.allModules.length * 120),
             duration: const Duration(milliseconds: 350),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.errorRed.withOpacity(0.2),
-                    AppTheme.errorRed.withOpacity(0.1),
+                    AppTheme.dangerRed.withOpacity(0.3),
+                    AppTheme.dangerRed.withOpacity(0.2),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppTheme.errorRed.withOpacity(0.4),
+                  color: AppTheme.dangerRed.withOpacity(0.4),
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.errorRed.withOpacity(0.2),
+                    color: AppTheme.dangerRed.withOpacity(0.3),
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
@@ -734,28 +705,35 @@ class _PatientMainPageState extends State<PatientMainPage> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [
-                        AppTheme.errorRed.withOpacity(0.3),
-                        AppTheme.errorRed.withOpacity(0.2),
+                        AppTheme.dangerRed.withOpacity(0.5),
+                        AppTheme.dangerRed.withOpacity(0.4),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.errorRed.withOpacity(0.3),
+                      color: AppTheme.dangerRed.withOpacity(0.5),
                       width: 1,
                     ),
                   ),
                   child: const Icon(
                     Icons.logout,
-                    color: AppTheme.errorRed,
+                    color: AppTheme.white,
+                    size: 24,
                   ),
                 ),
                 title: const Text(
                   'Logout',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.errorRed,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.white,
                   ),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: AppTheme.white,
                 ),
                 onTap: () async {
                   await userProvider.signOut();
