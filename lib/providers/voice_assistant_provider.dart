@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 
 class VoiceAssistantProvider with ChangeNotifier {
@@ -72,8 +74,13 @@ class VoiceAssistantProvider with ChangeNotifier {
         return false;
       }
       
-      await _tts.setSpeechRate(0.9);
+      // Slower speech rate for better clarity (0.0 to 1.0, default is 0.5)
+      await _tts.setSpeechRate(0.4); // Much slower for better understanding
       await _tts.setLanguage('en-US');
+      // Set pitch slightly lower for clearer speech (0.5 to 2.0, default is 1.0)
+      await _tts.setPitch(0.9); // Slightly lower pitch for clearer voice
+      // Set volume to max for clarity
+      await _tts.setVolume(1.0);
       
       // Set up TTS completion handler
       _tts.setCompletionHandler(() {
@@ -81,9 +88,10 @@ class VoiceAssistantProvider with ChangeNotifier {
         notifyListeners();
         
         // Auto-start listening if waiting for follow-up
+        // Longer delay since slower speech takes more time
         if (_waitingForFollowUp) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            startListening();
+          Future.delayed(const Duration(milliseconds: 800), () {
+            startListening(context: _context);
           });
         }
       });
@@ -96,7 +104,16 @@ class VoiceAssistantProvider with ChangeNotifier {
     }
   }
 
-  Future<void> startListening() async {
+  BuildContext? _context;
+  
+  void setContext(BuildContext? context) {
+    _context = context;
+  }
+
+  Future<void> startListening({BuildContext? context}) async {
+    if (context != null) {
+      _context = context;
+    }
     if (_isListening || _isProcessing) return;
     _error = null;
     notifyListeners();
@@ -136,7 +153,7 @@ class VoiceAssistantProvider with ChangeNotifier {
           _isListening = false;
           _isProcessing = true;
           notifyListeners();
-          await _sendToAssistant(_transcript);
+          await _sendToAssistant(_transcript, context: _context ?? context);
         }
       },
       partialResults: true,
@@ -152,7 +169,7 @@ class VoiceAssistantProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _sendToAssistant(String text) async {
+  Future<void> _sendToAssistant(String text, {BuildContext? context}) async {
     if (text.isEmpty) {
       _error = 'No speech detected.';
       _isProcessing = false;
@@ -173,6 +190,20 @@ class VoiceAssistantProvider with ChangeNotifier {
       _response = data['text']?.toString() ?? 'No response.';
       _lastAction = data['intentAction']?.toString() ?? _lastAction;
       
+      // Handle navigation
+      if (data['navigation'] != null && context != null) {
+        final navigation = data['navigation'] as Map<String, dynamic>?;
+        final route = navigation?['route']?.toString();
+        if (route != null) {
+          // Navigate after a short delay to let TTS start
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (context.mounted) {
+              GoRouter.of(context).go(route);
+            }
+          });
+        }
+      }
+      
       // Check if this is a follow-up question
       _waitingForFollowUp = data['needsClarification'] == true || 
                            _response.toLowerCase().contains('?') ||
@@ -187,7 +218,9 @@ class VoiceAssistantProvider with ChangeNotifier {
       _isSpeaking = true;
       notifyListeners();
       
-      await _tts.speak(_response);
+      // Add pauses for better clarity by inserting commas/periods
+      final formattedResponse = _formatTextForSpeech(_response);
+      await _tts.speak(formattedResponse);
     } catch (e) {
       _error = 'Assistant error: $e';
       _waitingForFollowUp = false;
@@ -198,7 +231,42 @@ class VoiceAssistantProvider with ChangeNotifier {
   }
 
   Future<void> speak(String text) async {
-    await _tts.speak(text);
+    final formattedText = _formatTextForSpeech(text);
+    await _tts.speak(formattedText);
+  }
+  
+  // Format text to add pauses for better TTS clarity
+  String _formatTextForSpeech(String text) {
+    if (text.isEmpty) return text;
+    
+    String formatted = text;
+    
+    // Ensure spaces after punctuation for natural pauses
+    formatted = formatted.replaceAllMapped(
+      RegExp(r'([.,:;!?])([^\s.,:;!?])'),
+      (match) => '${match.group(1)} ${match.group(2)}',
+    );
+    
+    // Add natural pauses before important information (times, dates, doctor names)
+    // Add pause before time expressions
+    formatted = formatted.replaceAllMapped(
+      RegExp(r'(\s)(at\s+)(\d{1,2}:\d{2}|\d{1,2}\s*(?:AM|PM|am|pm))', caseSensitive: false),
+      (match) => '${match.group(1)}${match.group(2)}${match.group(3)}',
+    );
+    
+    // Ensure proper spacing around numbers
+    formatted = formatted.replaceAllMapped(
+      RegExp(r'(\d+)([a-zA-Z])'),
+      (match) => '${match.group(1)} ${match.group(2)}',
+    );
+    
+    // Add pause before lists (items separated by commas/semicolons)
+    formatted = formatted.replaceAllMapped(
+      RegExp(r'([^,;])(,|;)([^,;])'),
+      (match) => '${match.group(1)}${match.group(2)} ${match.group(3)}',
+    );
+    
+    return formatted.trim();
   }
 
   void clear() {

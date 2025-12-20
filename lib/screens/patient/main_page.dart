@@ -7,7 +7,9 @@ import '../../utils/constants.dart';
 import '../../utils/glass_effects.dart';
 import '../../providers/module_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/voice_assistant_provider.dart';
 import '../../widgets/module_block.dart';
+import '../../widgets/voice_assistant_widget.dart';
 
 class _DelayedAnimation extends StatefulWidget {
   final Widget child;
@@ -145,6 +147,47 @@ class _PatientMainPageState extends State<PatientMainPage> {
         ),
       ),
       drawer: _buildDrawer(context, moduleProvider, userProvider),
+      floatingActionButton: Consumer<VoiceAssistantProvider>(
+        builder: (context, voiceProvider, child) {
+          return FloatingActionButton.extended(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                isDismissible: !voiceProvider.isListening && !voiceProvider.isProcessing && !voiceProvider.waitingForFollowUp,
+                enableDrag: !voiceProvider.isListening && !voiceProvider.isProcessing && !voiceProvider.waitingForFollowUp,
+                builder: (context) => DraggableScrollableSheet(
+                  initialChildSize: 0.5,
+                  minChildSize: 0.3,
+                  maxChildSize: 0.9,
+                  builder: (context, scrollController) {
+                    return const VoiceAssistantWidget();
+                  },
+                ),
+              );
+            },
+            label: Text(
+              voiceProvider.isListening
+                  ? 'Listening...'
+                  : voiceProvider.isProcessing
+                      ? 'Working...'
+                      : voiceProvider.isSpeaking
+                          ? 'Speaking...'
+                          : 'Voice Assistant',
+            ),
+            icon: Icon(
+              voiceProvider.isListening
+                  ? Icons.hearing
+                  : voiceProvider.isProcessing
+                      ? Icons.hourglass_empty
+                      : voiceProvider.isSpeaking
+                          ? Icons.volume_up
+                          : Icons.mic,
+            ),
+          );
+        },
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
