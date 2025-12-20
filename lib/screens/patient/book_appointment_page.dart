@@ -241,9 +241,24 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Doctor: ${doctorProvider.doctors.firstWhere((d) => d.doctorId == _selectedDoctorId).name}'),
-                Text('Date: ${DateFormat('MMM dd, yyyy').format(_selectedDate!)}'),
-                Text('Time: $_selectedTime'),
+                Builder(
+                  builder: (context) {
+                    final doctor = doctorProvider.doctors
+                        .where((d) => d.doctorId == _selectedDoctorId)
+                        .firstOrNull;
+                    return Text('Doctor: ${doctor?.name ?? 'Unknown'}');
+                  },
+                ),
+                Builder(
+                  builder: (context) {
+                    final selectedDate = _selectedDate;
+                    final dateText = selectedDate != null
+                        ? DateFormat('MMM dd, yyyy').format(selectedDate)
+                        : 'Not selected';
+                    return Text('Date: $dateText');
+                  },
+                ),
+                Text('Time: ${_selectedTime ?? 'Not selected'}'),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _notesController,

@@ -13,6 +13,20 @@ class AppointmentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appointmentProvider = Provider.of<AppointmentProvider>(context);
     final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.currentUser;
+
+    // Handle case where user data hasn't loaded yet
+    if (currentUser == null) {
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundGreen,
+        appBar: AppBar(
+          title: const Text('My Appointments'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundGreen,
@@ -21,7 +35,7 @@ class AppointmentsPage extends StatelessWidget {
       ),
       body: StreamBuilder(
         stream: appointmentProvider.getPatientAppointmentsStream(
-          userProvider.currentUser!.userId,
+          currentUser.userId,
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

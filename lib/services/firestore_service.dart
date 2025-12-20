@@ -21,18 +21,46 @@ class FirestoreService {
         .where('userId', isEqualTo: userId)
         .orderBy('uploadDate', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Report.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final reports = <Report>[];
+          for (var doc in snapshot.docs) {
+            try {
+              reports.add(Report.fromFirestore(doc));
+            } catch (e) {
+              print('Error parsing report document ${doc.id}: $e');
+              // Skip invalid documents instead of breaking the entire stream
+            }
+          }
+          return reports;
+        });
   }
 
   Future<List<Report>> getReports(String userId) async {
-    final snapshot = await _firestore
-        .collection('reports')
-        .where('userId', isEqualTo: userId)
-        .orderBy('uploadDate', descending: true)
-        .get();
-    return snapshot.docs.map((doc) => Report.fromFirestore(doc)).toList();
+    try {
+      final snapshot = await _firestore
+          .collection('reports')
+          .where('userId', isEqualTo: userId)
+          .orderBy('uploadDate', descending: true)
+          .get();
+      
+      final reports = <Report>[];
+      for (var doc in snapshot.docs) {
+        try {
+          reports.add(Report.fromFirestore(doc));
+        } catch (e) {
+          print('Error parsing report document ${doc.id}: $e');
+          // Skip invalid documents instead of breaking the entire list
+        }
+      }
+      return reports;
+    } catch (e) {
+      print('Error fetching reports: $e');
+      // If the error is about missing index, provide helpful message
+      if (e.toString().contains('index')) {
+        throw Exception('Firestore index required. Please check Firebase console for index creation link.');
+      }
+      rethrow;
+    }
   }
 
   Future<Report?> getReport(String reportId) async {

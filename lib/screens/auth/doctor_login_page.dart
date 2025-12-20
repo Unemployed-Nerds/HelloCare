@@ -31,6 +31,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
     final success = await userProvider.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      role: 'doctor',
     );
 
     if (success && mounted) {

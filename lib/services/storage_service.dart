@@ -5,30 +5,66 @@ import 'package:path_provider/path_provider.dart';
 class StorageService {
   final Dio _dio = Dio();
 
-  // Upload file to S3 using presigned URL
+  // Upload file to Firebase Storage using presigned URL
+  Future<void> uploadToStorage({
+    required String uploadUrl,
+    required File file,
+    String? contentType,
+    Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      // Read file bytes
+      final fileBytes = await file.readAsBytes();
+      print('File bytes read: ${fileBytes.length} bytes');
+      
+      // Use PUT request with file bytes and proper content type
+      // Note: Firebase Storage presigned URLs require specific headers
+      final response = await _dio.put(
+        uploadUrl,
+        data: fileBytes,
+        options: Options(
+          headers: {
+            if (contentType != null) 'Content-Type': contentType,
+            // Don't add Authorization header - presigned URLs are self-contained
+          },
+          validateStatus: (status) {
+            // Accept 200 and 201 as success
+            return status != null && status >= 200 && status < 300;
+          },
+        ),
+        onSendProgress: onProgress,
+      );
+      
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response headers: ${response.headers}');
+      
+      if (response.statusCode == null || 
+          (response.statusCode! < 200 || response.statusCode! >= 300)) {
+        throw Exception('Upload failed with status: ${response.statusCode}');
+      }
+      
+      print('File uploaded successfully');
+    } catch (e) {
+      print('Error in uploadToStorage: $e');
+      rethrow;
+    }
+  }
+
+  // Legacy method name for backward compatibility
   Future<void> uploadToS3({
     required String uploadUrl,
     required File file,
     Function(int sent, int total)? onProgress,
   }) async {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(file.path),
-    });
-
-    await _dio.put(
-      uploadUrl,
-      data: formData,
-      options: Options(
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      ),
-      onSendProgress: onProgress,
+    await uploadToStorage(
+      uploadUrl: uploadUrl,
+      file: file,
+      onProgress: onProgress,
     );
   }
 
-  // Download file from S3
-  Future<File> downloadFromS3({
+  // Download file from Firebase Storage
+  Future<File> downloadFromStorage({
     required String downloadUrl,
     required String fileName,
     Function(int received, int total)? onProgress,
@@ -43,6 +79,19 @@ class StorageService {
     );
 
     return File(filePath);
+  }
+
+  // Legacy method name for backward compatibility
+  Future<File> downloadFromS3({
+    required String downloadUrl,
+    required String fileName,
+    Function(int received, int total)? onProgress,
+  }) async {
+    return downloadFromStorage(
+      downloadUrl: downloadUrl,
+      fileName: fileName,
+      onProgress: onProgress,
+    );
   }
 
   // Save file locally

@@ -63,8 +63,18 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () async {
+              final currentUser = userProvider.currentUser;
+              if (currentUser == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User data not loaded. Please try again.'),
+                    backgroundColor: AppTheme.errorRed,
+                  ),
+                );
+                return;
+              }
               final success = await doctorProvider.updateAvailability(
-                doctorId: userProvider.currentUser!.userId,
+                doctorId: currentUser.userId,
                 availability: _availability,
               );
               if (success && mounted) {

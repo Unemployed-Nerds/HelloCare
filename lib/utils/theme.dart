@@ -1,36 +1,46 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Modern Green Color Palette (optimized for dark theme)
-  static const Color primaryGreen = Color(0xFF4CAF50); // Brighter green for dark theme
-  static const Color primaryGreenLight = Color(0xFF66BB6A);
-  static const Color primaryGreenDark = Color(0xFF2E7D32);
-  static const Color accentGreen = Color(0xFF81C784);
-  static const Color lightGreen = Color(0xFFA5D6A7);
-  static const Color darkGreen = Color(0xFF1B5E20);
+  // Dark Mode Webtoon/Manga Color Palette - Vibrant with Glassmorphism
+  static const Color primaryGreen = Color(0xFF6BCB77); // Bright, vibrant green
+  static const Color primaryGreenLight = Color(0xFF95D5A3);
+  static const Color primaryGreenDark = Color(0xFF4FA85C);
+  static const Color accentGreen = Color(0xFFA8E6B8);
+  static const Color lightGreen = Color(0xFFC8F4D4);
+  static const Color darkGreen = Color(0xFF3D8B47);
   
-  // Dark Theme Background Colors
-  static const Color backgroundDark = Color(0xFF121212); // Material Dark background
-  static const Color surfaceDark = Color(0xFF1E1E1E); // Elevated surfaces
-  static const Color surfaceVariant = Color(0xFF2C2C2C); // Cards, dialogs
-  static const Color backgroundGreen = Color(0xFF0D1F0F); // Slightly green-tinted dark background
+  // Dark Mode Background Colors - Deep with gradients
+  static const Color backgroundDark = Color(0xFF0A0E1A); // Deep dark blue-black
+  static const Color surfaceDark = Color(0xFF1A1F2E); // Dark surface
+  static const Color surfaceVariant = Color(0xFF252B3D); // Elevated surfaces
+  static const Color backgroundGreen = Color(0xFF0D1A0F); // Dark green tint
+  
+  // Glassmorphism Colors
+  static const Color glassWhite = Color(0xFFFFFFFF);
+  static const Color glassBlack = Color(0xFF000000);
   
   // Text Colors for Dark Theme
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
-  static const Color textPrimary = Color(0xFFE0E0E0);
+  static const Color textPrimary = Color(0xFFE8E8E8);
   static const Color textSecondary = Color(0xFFB0B0B0);
   static const Color textDisabled = Color(0xFF757575);
   
-  // Additional Colors
-  static const Color grey = Color(0xFF757575);
-  static const Color lightGrey = Color(0xFF9E9E9E);
-  static const Color darkGrey = Color(0xFF424242);
-  static const Color errorRed = Color(0xFFCF6679); // Softer red for dark theme
+  // Additional Colors - Dark Mode
+  static const Color grey = Color(0xFF9E9E9E);
+  static const Color lightGrey = Color(0xFF4A4A4A);
+  static const Color darkGrey = Color(0xFF2A2A2A);
+  static const Color errorRed = Color(0xFFFF6B6B); // Bright, playful red
   
-  // Divider and Border Colors
-  static const Color divider = Color(0xFF2C2C2C);
-  static const Color border = Color(0xFF3A3A3A);
+  // Webtoon Accent Colors - Dark Mode Variants
+  static const Color accentPink = Color(0xFFFF8CC8);
+  static const Color accentBlue = Color(0xFF8CC8FF);
+  static const Color accentYellow = Color(0xFFFFE08C);
+  static const Color accentPurple = Color(0xFFC88CFF);
+  
+  // Divider and Border Colors - Dark Mode
+  static const Color divider = Color(0xFF2A2F3D);
+  static const Color border = Color(0xFF3A3F4D);
   
   static ThemeData get darkTheme {
     final colorScheme = ColorScheme.dark(
@@ -38,28 +48,28 @@ class AppTheme {
       onPrimary: black,
       primaryContainer: darkGreen,
       onPrimaryContainer: lightGreen,
-      secondary: accentGreen,
+      secondary: accentPink,
       onSecondary: black,
-      secondaryContainer: Color(0xFF1B5E20),
-      onSecondaryContainer: accentGreen,
-      tertiary: Color(0xFF81C784),
+      secondaryContainer: Color(0xFF2A1F2A),
+      onSecondaryContainer: accentPink,
+      tertiary: accentBlue,
       onTertiary: black,
       error: errorRed,
       onError: white,
-      errorContainer: Color(0xFF93000A),
-      onErrorContainer: Color(0xFFFFDAD6),
+      errorContainer: Color(0xFF3A1F1F),
+      onErrorContainer: errorRed,
       surface: surfaceDark,
       onSurface: textPrimary,
       onSurfaceVariant: textSecondary,
       surfaceVariant: surfaceVariant,
       outline: border,
       outlineVariant: divider,
-      shadow: black,
-      scrim: black,
+      shadow: black.withOpacity(0.5),
+      scrim: black.withOpacity(0.6),
       inverseSurface: textPrimary,
       onInverseSurface: surfaceDark,
       inversePrimary: primaryGreenDark,
-      surfaceTint: primaryGreen,
+      surfaceTint: primaryGreen.withOpacity(0.1),
     );
 
     return ThemeData(
@@ -70,51 +80,62 @@ class AppTheme {
       // Scaffold
       scaffoldBackgroundColor: backgroundDark,
       
-      // AppBar
+      // AppBar - Dark Mode with Glassmorphism
       appBarTheme: AppBarTheme(
-        backgroundColor: surfaceDark,
-        foregroundColor: textPrimary,
+        backgroundColor: Colors.transparent,
+        foregroundColor: white,
         elevation: 0,
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withOpacity(0.3),
         titleTextStyle: TextStyle(
-          color: textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.15,
+          color: white,
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.5),
+              offset: Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
         ),
         iconTheme: IconThemeData(
-          color: textPrimary,
-          size: 24,
+          color: white,
+          size: 28,
         ),
       ),
       
-      // Cards
+      // Cards - Dark Mode with Glassmorphism
       cardTheme: CardThemeData(
-        color: surfaceVariant,
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.3),
+        color: surfaceVariant.withOpacity(0.6),
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: white.withOpacity(0.1),
+            width: 1.5,
+          ),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
-      // Elevated Buttons
+      // Elevated Buttons - Webtoon Style (Bubbly)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
-          foregroundColor: black,
-          elevation: 2,
+          foregroundColor: white,
+          elevation: 6,
           shadowColor: primaryGreen.withOpacity(0.4),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
         ),
@@ -205,22 +226,28 @@ class AppTheme {
         ),
       ),
       
-      // Drawer
+      // Drawer - Dark Mode with Glassmorphism
       drawerTheme: DrawerThemeData(
-        backgroundColor: surfaceDark,
+        backgroundColor: surfaceDark.withOpacity(0.95),
         elevation: 0,
-        scrimColor: Colors.black.withOpacity(0.5),
+        scrimColor: Colors.black.withOpacity(0.7),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+        ),
       ),
       
-      // List Tile
+      // List Tile - Webtoon Style
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        selectedTileColor: primaryGreen.withOpacity(0.1),
+        selectedTileColor: primaryGreen.withOpacity(0.15),
         iconColor: textPrimary,
         textColor: textPrimary,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       
@@ -237,22 +264,27 @@ class AppTheme {
         size: 24,
       ),
       
-      // Dialog
+      // Dialog - Dark Mode with Glassmorphism
       dialogTheme: DialogThemeData(
-        backgroundColor: surfaceVariant,
-        elevation: 8,
-        shadowColor: Colors.black.withOpacity(0.5),
+        backgroundColor: surfaceVariant.withOpacity(0.95),
+        elevation: 16,
+        shadowColor: Colors.black.withOpacity(0.6),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(
+            color: white.withOpacity(0.1),
+            width: 2,
+          ),
         ),
         titleTextStyle: TextStyle(
           color: textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
         ),
         contentTextStyle: TextStyle(
           color: textSecondary,
-          fontSize: 14,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
         ),
       ),
       
@@ -316,23 +348,23 @@ class AppTheme {
         unselectedLabelTextStyle: TextStyle(color: textSecondary, fontSize: 12),
       ),
       
-      // Typography
+      // Typography - Webtoon Style (Bold, Rounded)
       textTheme: TextTheme(
-        displayLarge: TextStyle(color: textPrimary, fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25),
-        displayMedium: TextStyle(color: textPrimary, fontSize: 45, fontWeight: FontWeight.w400),
-        displaySmall: TextStyle(color: textPrimary, fontSize: 36, fontWeight: FontWeight.w400),
-        headlineLarge: TextStyle(color: textPrimary, fontSize: 32, fontWeight: FontWeight.w600),
-        headlineMedium: TextStyle(color: textPrimary, fontSize: 28, fontWeight: FontWeight.w600),
-        headlineSmall: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w600),
-        titleLarge: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.15),
-        titleSmall: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.1),
-        bodyLarge: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
-        bodyMedium: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
-        bodySmall: TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
-        labelLarge: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.1),
-        labelMedium: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-        labelSmall: TextStyle(color: textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+        displayLarge: TextStyle(color: textPrimary, fontSize: 57, fontWeight: FontWeight.w800, letterSpacing: -0.25),
+        displayMedium: TextStyle(color: textPrimary, fontSize: 45, fontWeight: FontWeight.w800),
+        displaySmall: TextStyle(color: textPrimary, fontSize: 36, fontWeight: FontWeight.w800),
+        headlineLarge: TextStyle(color: textPrimary, fontSize: 32, fontWeight: FontWeight.w700),
+        headlineMedium: TextStyle(color: textPrimary, fontSize: 28, fontWeight: FontWeight.w700),
+        headlineSmall: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w700),
+        titleLarge: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
+        titleMedium: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+        titleSmall: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+        bodyLarge: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.2),
+        bodyMedium: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+        bodySmall: TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2),
+        labelLarge: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+        labelMedium: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+        labelSmall: TextStyle(color: textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3),
       ),
       
       // Progress Indicator

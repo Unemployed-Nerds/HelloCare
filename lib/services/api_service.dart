@@ -14,16 +14,67 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // Add auth token if available
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          final token = await user.getIdToken();
-          options.headers['Authorization'] = 'Bearer $token';
+        try {
+          // Add auth token if available
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            // Force token refresh to ensure we have a valid token
+            final token = await user.getIdToken(true);
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } else {
+            // If no user, check if this is a protected endpoint
+            // Auth endpoints don't need tokens, but others do
+            if (!options.path.startsWith('/auth/')) {
+              print('Warning: No authenticated user for protected endpoint: ${options.path}');
+            }
+          }
+        } catch (e) {
+          print('Error getting auth token: $e');
+          // Continue without token if there's an error getting it
+          // The backend will return UNAUTHORIZED if needed
         }
         return handler.next(options);
       },
-      onError: (error, handler) {
-        // Handle errors
+      onError: (error, handler) async {
+        // Handle 401 errors - token might be expired
+        if (error.response?.statusCode == 401) {
+          try {
+            // Try to refresh the token and retry once
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              final token = await user.getIdToken(true);
+              if (token != null && token.isNotEmpty) {
+                // Retry the request with new token
+                final requestOptions = error.requestOptions;
+                requestOptions.headers['Authorization'] = 'Bearer $token';
+                
+                final opts = Options(
+                  method: requestOptions.method,
+                  headers: requestOptions.headers,
+                );
+                
+                try {
+                  final response = await _dio.request(
+                    requestOptions.path,
+                    options: opts,
+                    data: requestOptions.data,
+                    queryParameters: requestOptions.queryParameters,
+                  );
+                  return handler.resolve(response);
+                } catch (e) {
+                  // If retry also fails, continue with original error
+                  return handler.next(error);
+                }
+              }
+            }
+          } catch (e) {
+            print('Error refreshing token: $e');
+            // Continue with original error
+            return handler.next(error);
+          }
+        }
         return handler.next(error);
       },
     ));

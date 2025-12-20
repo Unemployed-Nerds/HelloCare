@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart' as models;
+import 'api_service.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiService _apiService = ApiService();
 
   firebase_auth.User? get currentUser => _auth.currentUser;
 
@@ -18,26 +20,36 @@ class AuthService {
     String? phone,
     DateTime? dateOfBirth,
   }) async {
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final userData = {
+    // Call backend API for signup
+    final signupData = {
       'email': email,
+      'password': password,
       'name': name,
-      'role': 'patient',
-      'phone': phone,
-      'dateOfBirth': dateOfBirth != null ? Timestamp.fromDate(dateOfBirth) : null,
-      'createdAt': Timestamp.now(),
-      'updatedAt': Timestamp.now(),
+      if (phone != null) 'phone': phone,
+      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth.toIso8601String(),
     };
 
-    await _firestore
-        .collection('users')
-        .doc(userCredential.user!.uid)
-        .set(userData);
+    final response = await _apiService.patientSignup(signupData);
 
+    if (!response['success']) {
+      final errorMessage = response['error']?['message'] ?? 'Sign up failed';
+      throw firebase_auth.FirebaseAuthException(
+        code: 'signup-failed',
+        message: errorMessage,
+      );
+    }
+
+    // Get custom token from API response
+    final customToken = response['data']?['token'] as String?;
+    if (customToken == null || customToken.isEmpty) {
+      throw firebase_auth.FirebaseAuthException(
+        code: 'invalid-token',
+        message: 'No token received from server',
+      );
+    }
+
+    // Sign in with custom token
+    final userCredential = await _auth.signInWithCustomToken(customToken);
     return userCredential;
   }
 
@@ -51,30 +63,38 @@ class AuthService {
     String? phone,
     String? bio,
   }) async {
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final userData = {
+    // Call backend API for signup
+    final signupData = {
       'email': email,
+      'password': password,
       'name': name,
-      'role': 'doctor',
-      'phone': phone,
       'specialization': specialization,
       'yearsOfExperience': yearsOfExperience,
-      'bio': bio,
-      'rating': 0.0,
-      'reviewCount': 0,
-      'createdAt': Timestamp.now(),
-      'updatedAt': Timestamp.now(),
+      if (phone != null) 'phone': phone,
+      if (bio != null) 'bio': bio,
     };
 
-    await _firestore
-        .collection('users')
-        .doc(userCredential.user!.uid)
-        .set(userData);
+    final response = await _apiService.doctorSignup(signupData);
 
+    if (!response['success']) {
+      final errorMessage = response['error']?['message'] ?? 'Sign up failed';
+      throw firebase_auth.FirebaseAuthException(
+        code: 'signup-failed',
+        message: errorMessage,
+      );
+    }
+
+    // Get custom token from API response
+    final customToken = response['data']?['token'] as String?;
+    if (customToken == null || customToken.isEmpty) {
+      throw firebase_auth.FirebaseAuthException(
+        code: 'invalid-token',
+        message: 'No token received from server',
+      );
+    }
+
+    // Sign in with custom token
+    final userCredential = await _auth.signInWithCustomToken(customToken);
     return userCredential;
   }
 
@@ -82,11 +102,55 @@ class AuthService {
   Future<firebase_auth.UserCredential> signIn({
     required String email,
     required String password,
+    String? role, // Optional: 'patient' or 'doctor' to specify which endpoint
   }) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    // Determine which login endpoint to use based on role or try both
+    Map<String, dynamic> response;
+    
+    if (role == 'patient') {
+      response = await _apiService.patientLogin({
+        'email': email,
+        'password': password,
+      });
+    } else if (role == 'doctor') {
+      response = await _apiService.doctorLogin({
+        'email': email,
+        'password': password,
+      });
+    } else {
+      // Try patient first, then doctor if it fails
+      try {
+        response = await _apiService.patientLogin({
+          'email': email,
+          'password': password,
+        });
+      } catch (e) {
+        response = await _apiService.doctorLogin({
+          'email': email,
+          'password': password,
+        });
+      }
+    }
+
+    if (!response['success']) {
+      final errorMessage = response['error']?['message'] ?? 'Login failed';
+      throw firebase_auth.FirebaseAuthException(
+        code: 'login-failed',
+        message: errorMessage,
+      );
+    }
+
+    // Get custom token from API response
+    final customToken = response['data']?['token'] as String?;
+    if (customToken == null || customToken.isEmpty) {
+      throw firebase_auth.FirebaseAuthException(
+        code: 'invalid-token',
+        message: 'No token received from server',
+      );
+    }
+
+    // Sign in with custom token
+    return await _auth.signInWithCustomToken(customToken);
   }
 
   // Sign Out

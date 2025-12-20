@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 import '../../utils/theme.dart';
 import '../../providers/report_provider.dart';
 import '../../widgets/pdf_viewer.dart';
@@ -14,12 +16,51 @@ class ReportDetailPage extends StatefulWidget {
 }
 
 class _ReportDetailPageState extends State<ReportDetailPage> {
+  String? _downloadUrl;
+  bool _isLoadingUrl = false;
+  String? _urlError;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Report will be loaded via provider
+      _loadDownloadUrl();
     });
+  }
+
+  Future<void> _loadDownloadUrl() async {
+    setState(() {
+      _isLoadingUrl = true;
+      _urlError = null;
+    });
+
+    final reportProvider = Provider.of<ReportProvider>(context, listen: false);
+    try {
+      print('Loading download URL for report: ${widget.reportId}');
+      final url = await reportProvider.getDownloadUrl(widget.reportId);
+      print('Download URL received: $url');
+      if (mounted) {
+        setState(() {
+          _downloadUrl = url;
+          _isLoadingUrl = false;
+          if (url == null || url.isEmpty) {
+            _urlError = reportProvider.error ?? 'Failed to get download URL';
+            print('Download URL is null or empty. Error: ${reportProvider.error}');
+          } else {
+            print('Setting download URL: $url');
+          }
+        });
+      }
+    } catch (e, stackTrace) {
+      print('Exception loading download URL: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _isLoadingUrl = false;
+          _urlError = 'Error loading file: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -82,29 +123,213 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (report.fileType == 'pdf')
+                if (_isLoadingUrl)
+                  const SizedBox(
+                    height: 600,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_urlError != null || _downloadUrl == null)
                   SizedBox(
                     height: 600,
-                    child: PDFViewer(url: report.s3Url ?? ''),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: AppTheme.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _urlError ?? 'Failed to load file',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadDownloadUrl,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (report.fileType == 'pdf')
+                  SizedBox(
+                    height: 600,
+                    child: PDFViewer(url: _downloadUrl!),
                   )
                 else
-                  Image.network(
-                    report.s3Url ?? '',
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Text('Failed to load image'),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(child: CircularProgressIndicator());
-                    },
-                  ),
+                  _ImageWidget(downloadUrl: _downloadUrl!, onRetry: _loadDownloadUrl),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Custom image widget that handles Firebase Storage signed URLs better
+class _ImageWidget extends StatefulWidget {
+  final String downloadUrl;
+  final VoidCallback onRetry;
+
+  const _ImageWidget({
+    required this.downloadUrl,
+    required this.onRetry,
+  });
+
+  @override
+  State<_ImageWidget> createState() => _ImageWidgetState();
+}
+
+class _ImageWidgetState extends State<_ImageWidget> {
+  Uint8List? _imageBytes;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      print('Loading image from URL: ${widget.downloadUrl}');
+      final response = await http.get(Uri.parse(widget.downloadUrl));
+      
+      print('Image response status: ${response.statusCode}');
+      print('Image response headers: ${response.headers}');
+      
+      if (response.statusCode == 200) {
+        setState(() {
+          _imageBytes = response.bodyBytes;
+          _isLoading = false;
+        });
+        print('Image loaded successfully, size: ${_imageBytes?.length} bytes');
+      } else {
+        throw Exception('Failed to load image: HTTP ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      print('Error loading image: $e');
+      print('Stack trace: $stackTrace');
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 600,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      final is404 = _error!.contains('404') || _error!.toLowerCase().contains('not found');
+      return SizedBox(
+        height: 600,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppTheme.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                is404
+                    ? 'File Not Found\n\nThe file may not have been uploaded successfully or may have been deleted.\nPlease contact support or re-upload the report.'
+                    : 'Failed to load image\n$_error',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              if (!is404)
+                Text(
+                  'URL: ${widget.downloadUrl.substring(0, widget.downloadUrl.length > 100 ? 100 : widget.downloadUrl.length)}...',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  _loadImage();
+                  widget.onRetry();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_imageBytes != null) {
+      return Image.memory(
+        _imageBytes!,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          print('Image.memory error: $error');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppTheme.grey,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to display image\n$error',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    _loadImage();
+                    widget.onRetry();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    return const SizedBox(
+      height: 600,
+      child: Center(child: Text('No image data')),
     );
   }
 }

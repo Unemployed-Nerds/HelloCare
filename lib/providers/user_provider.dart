@@ -110,6 +110,7 @@ class UserProvider with ChangeNotifier {
   Future<bool> signIn({
     required String email,
     required String password,
+    String? role, // Optional: 'patient' or 'doctor'
   }) async {
     _isLoading = true;
     _error = null;
@@ -119,6 +120,7 @@ class UserProvider with ChangeNotifier {
       final userCredential = await _authService.signIn(
         email: email,
         password: password,
+        role: role,
       );
       await loadUserData(userCredential.user!.uid);
       return true;

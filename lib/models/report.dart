@@ -35,19 +35,38 @@ class Report {
 
   factory Report.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    // Helper function to parse date from either Timestamp or ISO string
+    DateTime _parseDate(dynamic dateValue) {
+      if (dateValue == null) {
+        return DateTime.now();
+      }
+      if (dateValue is Timestamp) {
+        return dateValue.toDate();
+      }
+      if (dateValue is String) {
+        try {
+          return DateTime.parse(dateValue);
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+    
     return Report(
-      reportId: doc.id,
+      reportId: data['reportId'] ?? doc.id,
       userId: data['userId'] ?? '',
       fileKey: data['fileKey'] ?? '',
       fileName: data['fileName'] ?? '',
       fileType: data['fileType'] ?? '',
       title: data['title'] ?? '',
-      reportDate: (data['reportDate'] as Timestamp).toDate(),
+      reportDate: _parseDate(data['reportDate']),
       category: data['category'],
       doctorName: data['doctorName'],
       clinicName: data['clinicName'],
-      uploadDate: (data['uploadDate'] as Timestamp).toDate(),
-      s3Url: data['s3Url'],
+      uploadDate: _parseDate(data['uploadDate']),
+      s3Url: data['s3Url'] ?? data['storageUrl'],
       extractedText: data['extractedText'],
       fileSize: data['fileSize'],
     );

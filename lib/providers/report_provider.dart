@@ -3,6 +3,7 @@ import '../models/report.dart';
 import '../services/firestore_service.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
+import '../services/storage_service.dart';
 import 'dart:io';
 
 class ReportProvider with ChangeNotifier {
@@ -87,10 +88,26 @@ class ReportProvider with ChangeNotifier {
       }
 
       final fileKey = uploadUrlResponse['data']['fileKey'];
+      final uploadUrl = uploadUrlResponse['data']['uploadUrl'];
 
-      // Upload to S3 (this would need storage service)
-      // For now, we'll assume the backend handles it
-      // In a real implementation, you'd upload the file here
+      print('Uploading file to: $uploadUrl');
+      print('File key: $fileKey');
+      print('File size: $fileSize bytes');
+      print('Content type: $fileType');
+
+      // Upload file to Firebase Storage using presigned URL
+      final storageService = StorageService();
+      try {
+        await storageService.uploadToStorage(
+          uploadUrl: uploadUrl,
+          file: file,
+          contentType: fileType,
+        );
+        print('File uploaded successfully to Firebase Storage');
+      } catch (uploadError) {
+        print('Error uploading file: $uploadError');
+        throw Exception('Failed to upload file to storage: $uploadError');
+      }
 
       // Submit report metadata
       final reportResponse = await _apiService.submitReport({
@@ -124,6 +141,26 @@ class ReportProvider with ChangeNotifier {
     try {
       return await _firestoreService.getReport(reportId);
     } catch (e) {
+      _error = e.toString();
+      return null;
+    }
+  }
+
+  Future<String?> getDownloadUrl(String reportId) async {
+    try {
+      final response = await _apiService.getDownloadUrl(reportId);
+      print('Download URL response: $response');
+      if (response['success'] == true && response['data'] != null) {
+        final downloadUrl = response['data']['downloadUrl'] as String?;
+        print('Download URL: $downloadUrl');
+        return downloadUrl;
+      } else {
+        print('Failed to get download URL: ${response['error']}');
+        _error = response['error']?['message'] ?? 'Failed to get download URL';
+        return null;
+      }
+    } catch (e) {
+      print('Error getting download URL: $e');
       _error = e.toString();
       return null;
     }
