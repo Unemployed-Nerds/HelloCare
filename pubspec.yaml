@@ -74,6 +74,8 @@ dependencies:
   share_plus: ^10.0.2
   archive: ^3.4.9
   pdf: ^3.11.0
+  speech_to_text: ^7.0.0
+  flutter_tts: ^3.8.5
 
 dev_dependencies:
   flutter_test:

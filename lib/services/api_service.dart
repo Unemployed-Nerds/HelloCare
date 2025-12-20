@@ -304,6 +304,21 @@ class ApiService {
     return response.data;
   }
 
+  // Voice Assistant
+  Future<Map<String, dynamic>> voiceAssistant(
+    String text, {
+    List<Map<String, String>>? context,
+    String? lastAction,
+  }) async {
+    final payload = {
+      'text': text,
+      if (context != null) 'context': context,
+      if (lastAction != null) 'lastAction': lastAction,
+    };
+    final response = await _dio.post('/voice/assistant', data: payload);
+    return response.data;
+  }
+
   // QR Code
   Future<Map<String, dynamic>> generateQRCode({
     required List<String> reportIds,

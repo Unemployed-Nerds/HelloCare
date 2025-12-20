@@ -9,6 +9,7 @@ import 'providers/report_provider.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/doctor_provider.dart';
 import 'providers/module_provider.dart';
+import 'providers/voice_assistant_provider.dart';
 import 'services/cache_service.dart';
 
 void main() async {
@@ -64,6 +65,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => DoctorProvider()),
         ChangeNotifierProvider(create: (_) => ModuleProvider()),
+        ChangeNotifierProvider(create: (_) => VoiceAssistantProvider()),
       ],
       child: MaterialApp.router(
         title: 'HelloCare',
